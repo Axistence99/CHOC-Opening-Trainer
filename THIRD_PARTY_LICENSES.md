@@ -102,6 +102,15 @@ Full licensing details: [Lichess COPYING.md](https://github.com/lichess-org/lila
 - **License:** GPL-3.0-or-later (part of chessground)
 - **Note:** Base layout and positioning styles for the chess board
 
+## Engine
+
+### Stockfish.js (WASM)
+- **Version:** 10.0.2 (Stockfish 10)
+- **Copyright:** © T. Romstad, M. Costalba, J. Kiiski, G. Linscott and contributors
+- **License:** GPL-3.0-or-later
+- **Source:** https://github.com/nmrugg/stockfish.js
+- **Note:** WASM engine loaded via Web Worker from `public/engine/`
+
 ---
 
 ## Fonts

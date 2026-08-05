@@ -4,6 +4,7 @@ import { getRepertoires, addRepertoire } from '../utils/storage';
 import { parsePGNToTree, countPositions } from '../utils/pgnParser';
 import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires';
 import ChessgroundBoard from './ChessgroundBoard';
+import PlayVsEngine from './PlayVsEngine';
 
 const OPENINGS = [
   { id: 'sicilian', name: 'Sicilian Defense', eco: 'B20', tags: ['Aggressive', 'Black', 'Semi-Open'], description: 'The most popular response to 1.e4. Creates an asymmetrical game full of tactical complexity.', moves: ['e4', 'c5', 'Nf3', 'd6', 'd4'] },
@@ -110,6 +111,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const [currentBoardTheme, setCurrentBoardTheme] = useState(boardTheme || 'space');
   const [pieceSet, setPieceSet] = useState('cburnett');
   const [orientation, setOrientation] = useState('white');
+  const [playVsEngine, setPlayVsEngine] = useState(null); // null or 'w'/'b'
 
   const pieceStyleRef = useRef(null);
 
@@ -279,6 +281,24 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const activeOpening = selectedOpening;
   const boardSize = 'clamp(320px, 55vw, 560px)';
 
+  // If playing vs engine, render that instead
+  if (playVsEngine) {
+    return (
+      <div className="relative min-h-screen overflow-hidden" style={{ background: '#080b14', fontFamily: "'Inter', sans-serif" }}>
+        <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 25% 45%, #0e1828 0%, transparent 58%), radial-gradient(ellipse at 75% 20%, #110e20 0%, transparent 52%), radial-gradient(ellipse at 55% 85%, #0c1520 0%, transparent 50%), #080b14' }} />
+        </div>
+        <div className="relative" style={{ zIndex: 1 }}>
+          <PlayVsEngine
+            playerColor={playVsEngine}
+            boardTheme={{ light: theme.light, dark: theme.dark }}
+            onExit={() => setPlayVsEngine(null)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: '#080b14', fontFamily: "'Inter', sans-serif" }}>
       {/* Nebula background */}
@@ -382,7 +402,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             {/* Interactive Chess Board */}
             <div className="board-appear relative">
               <div className="relative rounded-lg overflow-hidden p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
-                <div style={{ width: boardSize, height: boardSize }}>
+                <div style={{ width: boardSize }}>
                   <ChessgroundBoard
                     config={cgConfig}
                     boardTheme={{ light: theme.light, dark: theme.dark }}
@@ -440,6 +460,24 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                     <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '0.1em', textAlign: 'center' }}>BLACK</div>
                     <div style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.65rem', marginTop: 4, textAlign: 'center' }}>{OPENINGS.filter(o => o.tags.includes('Black')).length} openings available</div>
                   </div>
+                </button>
+                {/* Play vs Stockfish */}
+                <div style={{ color: 'rgba(150,142,130,0.35)', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.15em', textAlign: 'center', width: '100%' }}>— OR —</div>
+                <button onClick={() => setPlayVsEngine('w')} className="w-full rounded-xl p-3.5 flex items-center gap-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '1.5rem' }}>⚔</span>
+                  <div className="text-left flex-1">
+                    <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.08em' }}>PLAY AS WHITE</div>
+                    <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.6rem', marginTop: 2 }}>vs Stockfish engine</div>
+                  </div>
+                  <span style={{ fontSize: '1.2rem', color: '#6b8cae' }}>♔</span>
+                </button>
+                <button onClick={() => setPlayVsEngine('b')} className="w-full rounded-xl p-3.5 flex items-center gap-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '1.5rem' }}>⚔</span>
+                  <div className="text-left flex-1">
+                    <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.08em' }}>PLAY AS BLACK</div>
+                    <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.6rem', marginTop: 2 }}>vs Stockfish engine</div>
+                  </div>
+                  <span style={{ fontSize: '1.2rem', color: '#6b8cae' }}>♚</span>
                 </button>
               </div>
             )}
@@ -513,6 +551,9 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         <div className="flex items-center gap-3 text-[10px]" style={{ color: 'rgba(150,142,130,0.4)' }}>
           <span>Board by</span>
           <a href="https://github.com/lichess-org/chessground" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(107,140,174,0.5)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>chessground</a>
+          <span>·</span>
+          <span>Engine</span>
+          <a href="https://github.com/nmrugg/stockfish.js" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(107,140,174,0.5)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Stockfish</a>
           <span>·</span>
           <span>Pieces from</span>
           <a href="https://lichess.org" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(107,140,174,0.5)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>Lichess</a>
