@@ -300,7 +300,7 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
       free: false,
       dests: isUserTurn ? dests : new Map(),
       showDests: true,
-      color: isUserTurn ? turnColor : undefined,
+      color: isUserTurn ? 'both' : undefined,
       events: { after: handleUserMove },
     },
     draggable: { enabled: isUserTurn, showGhost: true },

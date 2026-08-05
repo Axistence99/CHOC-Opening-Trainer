@@ -13,6 +13,7 @@ const OPENINGS = [
   { id: 'kings-indian', name: "King's Indian Defense", eco: 'E60', tags: ['Dynamic', 'Black', 'Closed'], description: 'Black allows White full center control then counterattacks fiercely. Favored by Fischer and Kasparov.', moves: ['d4', 'Nf6', 'c4', 'g6', 'Nc3'] },
   { id: 'french', name: 'French Defense', eco: 'C00', tags: ['Solid', 'Black', 'Semi-Open'], description: 'A solid, counter-punching defense. Black builds a pawn chain and fights for the center from behind.', moves: ['e4', 'e6', 'd4', 'd5', 'Nc3'] },
   { id: 'london', name: 'London System', eco: 'D02', tags: ['Solid', 'White', 'Closed'], description: 'A reliable and solid setup for White. Easy to learn with consistent plans across variations.', moves: ['d4', 'd5', 'Bf4', 'Nf6', 'e3'] },
+  { id: 'catalan-white', name: 'Catalan for White', eco: 'E05', tags: ['Positional', 'White', 'Closed'], description: 'A complex, theory-based opening where White fianchettos and pressures the long diagonal. Leads to small but lingering advantages and better pawn structures.', moves: ['d4', 'd5', 'c4', 'e6', 'Nf3', 'Nf6', 'g3'] },
 ];
 
 // Build annotation strings from opening moves
@@ -208,7 +209,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       free: false,
       dests,
       showDests: true,
-      color: currentTurnColor,
+      color: 'both',
       events: {
         after: handleUserMove,
       },
@@ -409,6 +410,52 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Mobile-only: Choose Color + Play vs Engine (hidden on md+) */}
+            <div className="md:hidden flex flex-col gap-3 w-full max-w-sm">
+              {!playerColor ? (
+                <>
+                  <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.7rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.1em', textAlign: 'center' }}>Which side do you play?</div>
+                  <div className="flex gap-3">
+                    <button onClick={() => chooseColor('w')} className="flex-1 rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(248,250,252,0.12), rgba(203,213,225,0.06))', border: '1px solid rgba(248,250,252,0.25)', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '2rem', lineHeight: 1 }}>♔</span>
+                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em' }}>WHITE</div>
+                    </button>
+                    <button onClick={() => chooseColor('b')} className="flex-1 rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.6))', border: '1px solid rgba(107,140,174,0.22)', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '2rem', lineHeight: 1 }}>♚</span>
+                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em' }}>BLACK</div>
+                    </button>
+                  </div>
+                  <div style={{ color: 'rgba(150,142,130,0.35)', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.15em', textAlign: 'center' }}>— OR —</div>
+                  <button onClick={() => setPlayVsEngine('w')} className="w-full rounded-xl p-3 flex items-center gap-3 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '1.3rem' }}>⚔</span>
+                    <div className="text-left flex-1">
+                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.08em' }}>PLAY AS WHITE</div>
+                      <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.55rem', marginTop: 2 }}>vs Stockfish</div>
+                    </div>
+                    <span style={{ fontSize: '1.1rem', color: '#6b8cae' }}>♔</span>
+                  </button>
+                  <button onClick={() => setPlayVsEngine('b')} className="w-full rounded-xl p-3 flex items-center gap-3 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '1.3rem' }}>⚔</span>
+                    <div className="text-left flex-1">
+                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.08em' }}>PLAY AS BLACK</div>
+                      <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.55rem', marginTop: 2 }}>vs Stockfish</div>
+                    </div>
+                    <span style={{ fontSize: '1.1rem', color: '#6b8cae' }}>♚</span>
+                  </button>
+                </>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={() => setPlayerColor(null)} className="flex-1 py-2.5 rounded-lg transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
+                    <span style={{ color: '#8daac4', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>← CHANGE COLOR</span>
+                  </button>
+                  <button onClick={() => chooseColor(playerColor === 'w' ? 'b' : 'w')} className="flex-1 py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '0.75rem' }}>{playerColor === 'w' ? '♚' : '♔'}</span>
+                    <span style={{ color: '#8daac4', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>SWITCH</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Controls */}

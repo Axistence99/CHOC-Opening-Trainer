@@ -155,7 +155,7 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit }) {
       free: false,
       dests: playerCanMove ? dests : new Map(),
       showDests: true,
-      color: playerCanMove ? turnColor : undefined,
+      color: playerCanMove ? 'both' : undefined,
       events: { after: handleUserMove },
     },
     draggable: { enabled: playerCanMove, showGhost: true },
