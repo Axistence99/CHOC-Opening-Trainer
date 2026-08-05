@@ -6,7 +6,6 @@ import { Chessground } from 'chessground';
 
 /**
  * Generate a proper 8×8 checkerboard as a base64-encoded SVG data URI.
- * Base64 encoding avoids all fragile #%23 escaping issues.
  */
 function makeBoardURI(light, dark) {
   let rects = '';
@@ -23,34 +22,54 @@ function makeBoardURI(light, dark) {
 
 /**
  * React wrapper for chessground — Lichess's interactive board.
+ *
+ * SIZING: Measures parent width, rounds to multiple of 8 for crisp squares,
+ * then sets BOTH width AND height as explicit px on the .cg-wrap div.
+ * This guarantees chessground sees a perfect square where width/8 and
+ * height/8 are integers, so pieces land exactly centered on squares.
+ *
+ * MOBILE: On small viewports, we use a tighter minimum and allow the board
+ * to shrink more aggressively. The ResizeObserver re-measures on any
+ * parent width change (rotation, sidebar toggle, etc.).
  */
 export default function ChessgroundBoard({ config, boardTheme }) {
   const containerRef = useRef(null);
   const cgRef = useRef(null);
-  const [lockedPx, setLockedPx] = useState(0);
+  const [boardPx, setBoardPx] = useState(0);
 
-  // Lock container to explicit pixel size after layout
+  // Measure parent width and lock to multiple-of-8 px
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    const lockSize = () => {
-      const w = el.getBoundingClientRect().width;
-      if (w > 0) {
-        const px = Math.floor(w / 8) * 8;
-        if (px >= 8) setLockedPx(px);
+    const measure = () => {
+      const parent = el.parentElement;
+      if (!parent) return;
+      const rect = parent.getBoundingClientRect();
+      const style = getComputedStyle(parent);
+      const padL = parseFloat(style.paddingLeft) || 0;
+      const padR = parseFloat(style.paddingRight) || 0;
+      const contentW = rect.width - padL - padR;
+      if (contentW > 0) {
+        // Minimum 256px on mobile (8*32), ensures at least 32px per square
+        const minPx = 256;
+        const px = Math.max(minPx, Math.floor(contentW / 8) * 8);
+        if (px >= minPx) setBoardPx(px);
       }
     };
 
-    lockSize();
-    const ro = new ResizeObserver(lockSize);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+    measure();
+    const parent = el.parentElement;
+    if (parent) {
+      const ro = new ResizeObserver(measure);
+      ro.observe(parent);
+      return () => ro.disconnect();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initialize chessground once we have locked pixel dimensions
+  // Initialize chessground once we have locked dimensions
   useEffect(() => {
-    if (lockedPx <= 0 || !containerRef.current) return;
+    if (boardPx <= 0 || !containerRef.current) return;
     if (cgRef.current) {
       cgRef.current.destroy();
       cgRef.current = null;
@@ -62,22 +81,12 @@ export default function ChessgroundBoard({ config, boardTheme }) {
         cgRef.current = null;
       }
     };
-  }, [lockedPx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [boardPx]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update config on change and force bounds recalculation
+  // Update config on change
   useEffect(() => {
     if (cgRef.current && config) {
       cgRef.current.set(config);
-      // Force chessground to recalculate piece positions after config change.
-      // Without this, pieces can be misaligned when the FEN changes drastically
-      // (e.g., switching repertoires) because chessground caches bounds.
-      requestAnimationFrame(() => {
-        const boardEl = containerRef.current?.querySelector('cg-board');
-        if (boardEl) {
-          // Dispatch a resize event so chessground recalculates
-          window.dispatchEvent(new Event('resize'));
-        }
-      });
     }
   }, [config]);
 
@@ -102,10 +111,13 @@ export default function ChessgroundBoard({ config, boardTheme }) {
       ref={containerRef}
       className="cg-wrap"
       style={{
-        width: '100%',
-        ...(lockedPx > 0
-          ? { height: `${lockedPx}px` }
-          : { aspectRatio: '1 / 1' }),
+        // Both width and height as explicit px — perfect square, integer width/8
+        width: boardPx > 0 ? `${boardPx}px` : '100%',
+        height: boardPx > 0 ? `${boardPx}px` : undefined,
+        // Phase 1: let aspect-ratio derive height from width
+        aspectRatio: boardPx > 0 ? undefined : '1 / 1',
+        // Prevent mobile browsers from adding odd spacing
+        lineHeight: 0,
       }}
     />
   );

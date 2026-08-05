@@ -69,7 +69,7 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit }) {
   const isPlayerTurn = useCallback(() => {
     const turnIsWhite = chess.turn() === 'w';
     return (playerColor === 'w' && turnIsWhite) || (playerColor === 'b' && !turnIsWhite);
-  }, [chess, playerColor]);
+  }, []); // no deps needed — reads live chess state at call time
 
   const makeEngineMove = useCallback(async () => {
     if (!engineRef.current || !engineRef.current.ready) return;
@@ -141,6 +141,7 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit }) {
 
   const dests = useMemo(() => computeDests(fen), [fen]);
   const turnColor = chess.turn() === 'w' ? 'white' : 'black';
+  // Must depend on fen so playerCanMove recalculates after each move
   const playerCanMove = isPlayerTurn() && gameStatus === 'playing';
 
   const cgConfig = useMemo(() => ({

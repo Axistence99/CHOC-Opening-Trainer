@@ -1,10 +1,22 @@
 /**
  * Stockfish Web Worker wrapper.
- * Uses stockfish.js WASM via a Web Worker from public/engine/.
  *
- * IMPORTANT: The worker path must be relative (not absolute /) so it works
- * when hosted in a subdirectory like GitHub Pages (e.g., /CHOC-Opening-Trainer/).
+ * IMPORTANT: Web Worker paths resolve relative to the importing script's URL,
+ * NOT the document URL. In production, the JS bundle is at ./assets/index-xxx.js,
+ * so new Worker('./engine/...') would look in ./assets/engine/ which doesn't exist.
+ *
+ * Fix: Resolve the worker URL relative to the document (page) URL using
+ * document.baseURI or window.location, which works correctly both in dev
+ * (localhost) and production (GitHub Pages subdirectory).
  */
+
+function getStockfishWorkerURL() {
+  // document.baseURI accounts for <base> tags and works in subdirectories
+  const base = document.baseURI || window.location.href;
+  const baseUrl = base.endsWith('/') ? base : base.substring(0, base.lastIndexOf('/') + 1);
+  return baseUrl + 'engine/stockfish.wasm.js';
+}
+
 export default class StockfishEngine {
   constructor() {
     this.worker = null;
@@ -17,8 +29,7 @@ export default class StockfishEngine {
   async init() {
     return new Promise((resolve, reject) => {
       try {
-        // Use relative path so it works in subdirectories (GitHub Pages)
-        this.worker = new Worker('./engine/stockfish.wasm.js');
+        this.worker = new Worker(getStockfishWorkerURL());
       } catch (e) {
         reject(Error(`Failed to create Stockfish worker: ${e.message}`));
         return;
