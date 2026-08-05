@@ -15,6 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ── Option A: New GitHub Pages (Source = "GitHub Actions") ──
   build:
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +27,6 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
-
       - run: npm run build
 
       - uses: actions/upload-pages-artifact@v3

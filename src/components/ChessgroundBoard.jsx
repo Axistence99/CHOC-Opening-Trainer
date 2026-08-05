@@ -5,18 +5,26 @@ import 'chessground/assets/chessground.cburnett.css';
 import { Chessground } from 'chessground';
 
 /**
- * Generate SVG board background for chessground.
- * Uses %23 encoding for # in hex colors within SVG data URIs.
+ * Generate a proper 8×8 checkerboard SVG as a data URI for the board background.
+ *
+ * This creates 64 individual <rect> elements in an SVG with viewBox="0 0 8 8",
+ * alternating between light and dark colors. When used as a background-image
+ * on cg-board with background-size:cover, it renders all 64 squares correctly.
+ *
+ * Previous version only drew 3 rects (a 2×2 grid of big blocks) which is why
+ * the board appeared as just 4 colored quadrants instead of 64 squares.
  */
 function makeBoardSVG(light, dark) {
-  const l = light.replace('#', '%23');
-  const d = dark.replace('#', '%23');
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'>`
-    + `<rect width='8' height='8' fill='${d}'/>`
-    + `<rect width='4' height='4' fill='${l}'/>`
-    + `<rect x='4' y='4' width='4' height='4' fill='${l}'/>`
-    + `</svg>`;
-  return `url("data:image/svg+xml,${svg}")`;
+  // Build the SVG with all 64 squares
+  let rects = '';
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const isLight = (x + y) % 2 === 0;
+      rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${isLight ? light : dark}"/>`;
+    }
+  }
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'>${rects}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
 /**
@@ -44,7 +52,6 @@ export default function ChessgroundBoard({ config, boardTheme }) {
   const [lockedPx, setLockedPx] = useState(0);
 
   // After mount, read the browser-computed width and lock it as explicit px.
-  // This ensures chessground always sees a concrete pixel size.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -52,16 +59,13 @@ export default function ChessgroundBoard({ config, boardTheme }) {
     const lockSize = () => {
       const w = el.getBoundingClientRect().width;
       if (w > 0) {
-        // Round to multiple of 8 for pixel-perfect squares
         const px = Math.floor(w / 8) * 8;
         if (px >= 8) setLockedPx(px);
       }
     };
 
-    // Try immediately (layout should be computed by now)
     lockSize();
 
-    // Also observe resizes
     const ro = new ResizeObserver(lockSize);
     ro.observe(el);
     return () => ro.disconnect();
@@ -93,7 +97,7 @@ export default function ChessgroundBoard({ config, boardTheme }) {
     }
   }, [config]);
 
-  // Apply custom board colors
+  // Apply custom board colors via direct DOM manipulation
   useEffect(() => {
     if (!containerRef.current || !boardTheme) return;
     const apply = () => {
@@ -114,13 +118,10 @@ export default function ChessgroundBoard({ config, boardTheme }) {
       ref={containerRef}
       className="cg-wrap"
       style={{
-        // Width: always fill parent
         width: '100%',
-        // Height: use locked px if available, otherwise let aspect-ratio compute it
-        // NEVER use height:100% — it resolves to 0 when parent has height:auto
         ...(lockedPx > 0
-          ? { height: `${lockedPx}px` }   // Phase 2: explicit px
-          : { aspectRatio: '1 / 1' }),    // Phase 1: CSS computes from width
+          ? { height: `${lockedPx}px` }
+          : { aspectRatio: '1 / 1' }),
       }}
     />
   );
