@@ -1,0 +1,24 @@
+CC0 1.0 Universal
+
+Statement of Purpose
+
+The laws of most jurisdictions throughout the world automatically confer
+exclusive Copyright and Related Rights (defined below) upon the creator
+and subsequent owner(s) of an original work of authorship and/or a
+database (the "Work").
+
+By using CC0, the affirmer disclaims all Copyright and Related Rights
+in the Work, and thereby dedicates the Work to the public domain.
+
+To the fullest extent permitted by law, the affirmer makes no
+warranties of any kind concerning the Work, express, implied,
+statutory or otherwise, including without limitation, warranties of
+title, merchantability, fitness for a particular purpose, non-
+infringement, or the absence of latent or other defects, accuracy, or
+the present or absence of errors, whether or not discoverable, all to
+the greatest extent permissible under applicable law.
+
+Full legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Applies to:
+- RhosGFX piece set by RhosGFX (https://rhosgfx.itch.io/)

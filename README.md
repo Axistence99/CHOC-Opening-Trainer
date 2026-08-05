@@ -2,16 +2,17 @@
 
 A free, open-source chess opening repertoire trainer that runs entirely in your browser. Host it on GitHub Pages for free!
 
-![CHOC Opening Trainer](https://img.shields.io/badge/React-19-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8) ![chess.js](https://img.shields.io/badge/chess.js-latest-green)
+![CHOC Opening Trainer](https://img.shields.io/badge/React-19-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8) ![chess.js](https://img.shields.io/badge/chess.js-latest-green) ![chessground](https://img.shields.io/badge/chessground-9-GPLv2)
 
 ## Features
 
 - 📚 **Pre-built Repertoires** — Beginner-friendly opening lines for White & Black
 - 📥 **PGN Import** — Import your own PGN files or paste from Lichess Studies, ChessBase, etc.
 - 🧠 **Spaced Repetition** — SM-2 algorithm tracks which lines you need to review
-- 🎯 **Interactive Practice** — Play moves on the board, get instant feedback
+- 🎯 **Interactive Practice** — Drag & click moves on a Lichess-grade chessboard (chessground)
 - 💡 **Hints** — See the correct move when you're stuck
-- 🎨 **Board Themes** — 6 color themes: Lichess, Chess.com, Grey & Black, Blue, Wood, Emerald
+- 🎨 **Board Themes** — 6 color themes: Lichess, Marble, Grey & Black, Blue, Wood, Emerald
+- ♟️ **Piece Sets** — 6 free/open piece sets from Lichess (CC0, GPLv2+, Apache 2.0)
 - 💾 **Offline & Private** — All data saved in your browser, no account needed
 - 📱 **Mobile Friendly** — Responsive design works on phones and tablets
 - 🔄 **PGN Export** — Export your repertoire anytime for backup
@@ -31,19 +32,34 @@ A free, open-source chess opening repertoire trainer that runs entirely in your 
 
 | Theme | Light Square | Dark Square |
 |---|---|---|
-| Lichess Green | `#edeed1` | `#779952` |
-| Chess.com | `#f0d9b5` | `#b58863` |
+| Lichess | `#edeed1` | `#779952` |
+| Marble | `#f0d9b5` | `#b58863` |
 | Grey & Black | `#a8a8a8` | `#4a4a4a` |
 | Blue | `#dee3e6` | `#8ca2ad` |
 | Wood | `#e8c98e` | `#a06830` |
 | Emerald | `#d4e8d0` | `#5d8a5c` |
+
+## Piece Sets
+
+All piece sets are from the [Lichess repository](https://github.com/lichess-org/lila) and are free/open-source:
+
+| Set | License | Author |
+|---|---|---|
+| Cburnett | GPLv2+ | [Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett) |
+| RhosGFX | CC0 1.0 | [RhosGFX](https://rhosgfx.itch.io/) |
+| Merida | GPLv2+ | Armando Hernandez Marroquin |
+| Pirouetti | AGPLv3+ | [pirouetti](https://lichess.org/@/pirouetti) |
+| Chessnut | Apache 2.0 | [Alexis Luengas](https://github.com/LexLuengas) |
+| Kiwen-suwi | CC BY 4.0 | [neverRare](https://github.com/neverRare) |
+
+See [Lichess COPYING.md](https://github.com/lichess-org/lila/blob/master/COPYING.md) for full details.
 
 ## Tech Stack
 
 | Technology | Purpose |
 |---|---|
 | **React 19 + Vite** | Framework & build tool |
-| **react-chessboard** | Interactive chess board UI |
+| **chessground** | Lichess interactive chess board UI |
 | **chess.js** | Chess logic (move validation, PGN parsing) |
 | **Tailwind CSS 4** | Styling |
 | **localStorage** | Persistent data (no backend needed) |
@@ -82,10 +98,15 @@ You can import PGN from any source:
 
 - **Lichess Studies** — Go to a study → ⋯ → Export PGN
 - **ChessBase** — Export games as PGN
-- **Chess.com** — Copy PGN from game review
 - **Other trainers** — Export from Chessbook, OpenBook, etc.
 - **Manual entry** — Type moves like: `1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 *`
 
 ## License
 
-MIT
+GPL-3.0-or-later — See [LICENSE](./LICENSE) for the full text.
+
+This project uses [chessground](https://github.com/lichess-org/chessground) (GPL-3.0-or-later)
+which requires the combined work to be distributed under GPL-3.0.
+
+See [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md) for all third-party
+attributions including piece sets, fonts, and dependencies.

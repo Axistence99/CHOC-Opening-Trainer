@@ -1,22 +1,15 @@
 // Board color theme definitions
 // Each theme has a name, id, and colors for light/dark squares
+// All themes are original or inspired by open-source designs (Lichess AGPL)
 
 const BOARD_THEMES = {
   lichess: {
     id: 'lichess',
-    name: 'Lichess Green',
-    description: 'Classic Lichess board',
+    name: 'Lichess',
+    description: 'Classic Lichess green board',
     lightSquare: '#edeed1',
     darkSquare: '#779952',
     preview: { light: '#edeed1', dark: '#779952' },
-  },
-  chesscom: {
-    id: 'chesscom',
-    name: 'Chess.com',
-    description: 'Chess.com brown/tan',
-    lightSquare: '#f0d9b5',
-    darkSquare: '#b58863',
-    preview: { light: '#f0d9b5', dark: '#b58863' },
   },
   greyblack: {
     id: 'greyblack',
@@ -49,6 +42,14 @@ const BOARD_THEMES = {
     lightSquare: '#d4e8d0',
     darkSquare: '#5d8a5c',
     preview: { light: '#d4e8d0', dark: '#5d8a5c' },
+  },
+  icc: {
+    id: 'icc',
+    name: 'Marble',
+    description: 'Classic marble board',
+    lightSquare: '#f0d9b5',
+    darkSquare: '#b58863',
+    preview: { light: '#f0d9b5', dark: '#b58863' },
   },
 };
 
