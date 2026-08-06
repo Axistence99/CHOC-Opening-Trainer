@@ -302,8 +302,10 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   };
 
   const handlePractice = (openingOverride) => {
-    // The opening to practice (defaults to the currently selected opening)
-    const target = openingOverride || activeOpening;
+    // The opening to practice (defaults to the currently selected opening).
+    // Note: the PRACTICE button must call this with () => to avoid React passing
+    // the click event here (openingOverride would then be a SyntheticEvent).
+    const target = (openingOverride && openingOverride.id) ? openingOverride : activeOpening;
     // Explicit map of browse-opening id -> prebuilt repertoire id, so each
     // opening reliably opens the correct repertoire instead of guessing.
     const OPENING_TO_PREBUILT = {
@@ -329,24 +331,20 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         try {
           const tree = parsePGNToTree(matching.pgn);
           const positionCount = countPositions(tree) - 1;
-          const newRep = { ...matching, tree, positionCount, isPrebuilt: true, createdAt: Date.now() };
+          // NOTE: do NOT persist `tree` — it uses Map objects that don't survive
+          // JSON serialization (they become plain {} and break iteration later).
+          const newRep = { ...matching, positionCount, isPrebuilt: true, createdAt: Date.now() };
           addRepertoire(newRep);
         } catch (e) { console.error(e); }
       }
-      // Ensure the repertoire has a parsed tree before passing it
-      const existingRep = getRepertoires().find(r => r.id === matching.id);
-      if (existingRep && existingRep.tree) {
-        onSelectRepertoire(existingRep);
-      } else if (existingRep) {
-        try {
-          const tree = parsePGNToTree(existingRep.pgn);
-          const repWithTree = { ...existingRep, tree };
-          onSelectRepertoire(repWithTree);
-        } catch (e) {
-          console.error(e);
-          onSelectRepertoire(existingRep);
-        }
-      } else {
+      // Always rebuild a fresh tree from the PGN. The tree stored in localStorage
+      // (if any) is JSON-corrupted (Maps -> {}) and cannot be iterated.
+      try {
+        const tree = parsePGNToTree(matching.pgn);
+        const repWithTree = { ...matching, tree };
+        onSelectRepertoire(repWithTree);
+      } catch (e) {
+        console.error(e);
         onSelectRepertoire(matching);
       }
     }
@@ -563,7 +561,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
               {/* Flip + Practice buttons */}
               <div className="flex gap-2 w-full">
                 <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} className="flex-1 px-3 py-2 md:py-2.5 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(107,140,174,0.08)', border: '1px solid rgba(107,140,174,0.18)', color: '#8daac4', fontFamily: "'Orbitron', sans-serif", fontSize: '0.6rem', letterSpacing: '0.08em', cursor: 'pointer' }}>⟳ FLIP</button>
-                <button onClick={handlePractice} className="flex-[2] px-4 md:px-6 py-2 md:py-3 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', fontFamily: "'Orbitron', sans-serif", fontSize: '0.7rem', letterSpacing: '0.1em', cursor: 'pointer', boxShadow: '0 0 20px rgba(107,140,174,0.1)' }}>♠ PRACTICE</button>
+                <button onClick={() => handlePractice()} className="flex-[2] px-4 md:px-6 py-2 md:py-3 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', fontFamily: "'Orbitron', sans-serif", fontSize: '0.7rem', letterSpacing: '0.1em', cursor: 'pointer', boxShadow: '0 0 20px rgba(107,140,174,0.1)' }}>♠ PRACTICE</button>
               </div>
             </div>}
           </main>

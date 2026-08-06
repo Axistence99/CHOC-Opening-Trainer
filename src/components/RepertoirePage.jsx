@@ -130,7 +130,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // Initialize tree from repertoire
   useEffect(() => {
     if (!repertoire) return;
-    const parsedTree = repertoire.tree || parsePGNToTree(repertoire.pgn);
+    // Defensive: a tree loaded from localStorage has Map->{} corruption, so only
+    // trust repertoire.tree if its children are a real Map; otherwise rebuild from PGN.
+    const storedTree = repertoire.tree;
+    const validTree = storedTree && storedTree.children instanceof Map ? storedTree : null;
+    const parsedTree = validTree || parsePGNToTree(repertoire.pgn);
     setTree(parsedTree);
     setCurrentNode(parsedTree);
     setOrientation(repertoire.color === 'black' ? 'black' : 'white');
@@ -193,6 +197,32 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setLastMove(p.from && p.to ? [p.from, p.to] : null);
     setCurrentPath(studyPath.slice(1).map(s => s.san).filter(Boolean));
   }, [studyPath]);
+
+  // ─── SESSION / DAILY CAPS ───
+  // Defined here (before handleTrainUserMove) because it's referenced in that
+  // callback's dependency array — defining it later caused a TDZ crash.
+  const handleSessionProgress = useCallback(() => {
+    setSessionCount((c) => {
+      const n = c + 1;
+      if (settings.sessionCap > 0 && n >= settings.sessionCap) {
+        setAllCaughtUp(true);
+      }
+      return n;
+    });
+  }, [settings.sessionCap]);
+
+  const handleRetrainFromScratch = useCallback(() => {
+    resetAllCards();
+    setRetraining(true);
+    setAllCaughtUp(false);
+    setSessionCount(0);
+    setTimeout(() => setRetraining(false), 400);
+  }, []);
+
+  const handleTrainFurther = useCallback(() => {
+    setAllCaughtUp(false);
+    setSessionCount(0);
+  }, []);
 
   // ─── TRAIN MODE ───
   const startTrainLine = useCallback((lines, idx, rootNode) => {
@@ -401,30 +431,6 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const clearHints = useCallback(() => {
     setHintShapes([]);
     setHintStage(0);
-  }, []);
-
-  // ─── SESSION / DAILY CAPS ───
-  const handleSessionProgress = useCallback(() => {
-    setSessionCount((c) => {
-      const n = c + 1;
-      if (settings.sessionCap > 0 && n >= settings.sessionCap) {
-        setAllCaughtUp(true);
-      }
-      return n;
-    });
-  }, [settings.sessionCap]);
-
-  const handleRetrainFromScratch = useCallback(() => {
-    resetAllCards();
-    setRetraining(true);
-    setAllCaughtUp(false);
-    setSessionCount(0);
-    setTimeout(() => setRetraining(false), 400);
-  }, []);
-
-  const handleTrainFurther = useCallback(() => {
-    setAllCaughtUp(false);
-    setSessionCount(0);
   }, []);
 
   // ─── COPY LINE ───
