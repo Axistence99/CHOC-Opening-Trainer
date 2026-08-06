@@ -21,6 +21,18 @@ function computeDests(fen) {
   } catch { return new Map(); }
 }
 
+// Pick opponent move skillfully: prefer moves where user has an available response in recorded PGN
+function pickOpponentMove(expectedMap) {
+  const allMoves = Array.from(expectedMap.keys());
+  if (allMoves.length === 0) return null;
+  const withUserResponses = allMoves.filter(san => {
+    const childNode = expectedMap.get(san);
+    return childNode && childNode.children && childNode.children.size > 0;
+  });
+  const pool = withUserResponses.length > 0 ? withUserResponses : allMoves;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 // Build a linear path of positions from the tree for study navigation
 function buildStudyPath(tree) {
   const path = [{ fen: tree.fen, move: null, san: null, from: null, to: null, comment: null, depth: 0 }];
@@ -266,9 +278,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setTrainMessage('Your turn — play the correct move');
     } else if (expected.size > 0) {
       // Computer responds immediately
-      const arr = Array.from(expected.keys());
-      const rm = arr[Math.floor(Math.random() * arr.length)];
-      const move = chess.move(rm);
+      const rm = pickOpponentMove(expected);
+      const move = rm ? chess.move(rm) : null;
       if (move) {
         setPosition(chess.fen());
         setCurrentPath(prev => [...prev, rm]);
@@ -342,9 +353,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         // Computer auto-responds with book move
         setTrainMessage('✓ Correct!');
         setTimeout(() => {
-          const arr = Array.from(newExpected.keys());
-          const rm = arr[Math.floor(Math.random() * arr.length)];
-          const move = chess.move(rm);
+          const rm = pickOpponentMove(newExpected);
+          const move = rm ? chess.move(rm) : null;
           if (move) {
             setPosition(chess.fen());
             setCurrentPath(prev => [...prev, rm]);
@@ -364,7 +374,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
               setTrainMessage('✅ Line complete!');
             }
           }
-        }, 600);
+        }, 300);
       }
     } else {
       // ❌ WRONG — show red X, then rewind with animation

@@ -186,7 +186,7 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
   };
 
   const boardBg = getBoardThemeBackground(boardTheme);
-  const boardSize = 'min(calc(100vw - 40px), 560px)';
+  const boardSize = 'min(calc(100vw - 40px), calc(100vh - 200px), 520px)';
 
   const cgConfig = useMemo(() => ({
     fen,
@@ -208,9 +208,9 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
   }), [fen, orientation, turnColor, dests, handlePlay]);
 
   return (
-    <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-y-auto">
       {/* Editor main area */}
-      <div className="flex-1 md:min-h-0 flex flex-col items-center justify-start md:justify-center p-2 md:p-6 gap-3">
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 md:p-6 gap-3">
         {/* Board */}
         <div className="relative rounded-lg overflow-hidden p-1.5 md:p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
           <div style={{ width: boardSize }}>

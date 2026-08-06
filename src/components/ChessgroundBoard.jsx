@@ -120,10 +120,10 @@ export default function ChessgroundBoard({ config, boardTheme }) {
     }
   }, [config, boardPx]);
 
-  // Re-apply board colors when theme changes (NOT on every FEN change)
+  // Re-apply board colors when theme or orientation changes (NOT on every FEN change)
   useEffect(() => {
     applyBoardColors();
-  }, [boardTheme, boardPx, applyBoardColors]);
+  }, [boardTheme, boardPx, config?.orientation, applyBoardColors]);
 
   return (
     <div

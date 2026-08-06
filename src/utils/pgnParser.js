@@ -106,7 +106,7 @@ function splitPGNIntoGames(pgn) {
 // tree robust to all of the above.
 
 const SAN_RE =
-  /^(?:O-O-O|O-O|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?)$/;
+  /^(?:O-O-O|O-O|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?$/;
 
 /**
  * Strip PGN headers, comments, and split the move text into individual games
@@ -120,6 +120,7 @@ function extractGameSegments(pgn) {
     .replace(/\{[^}]*\}/g, ' ')
     // line comments
     .replace(/;[^\n]*/g, ' ')
+    .replace(/\$\d+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return text
@@ -129,27 +130,34 @@ function extractGameSegments(pgn) {
 }
 
 /**
- * Convert a single game's move text into an array of SAN move strings,
- * skipping move numbers, result markers, and variation brackets.
+ * Tokenize a single game's move text into an array of SAN move strings
+ * and variation brackets '(' and ')', skipping move numbers and result markers.
  */
-function extractSANMoves(gameSegment) {
-  const tokens = gameSegment.split(/\s+/);
-  const moves = [];
-  for (let tok of tokens) {
+function tokenizePGN(gameSegment) {
+  let text = String(gameSegment || '').trim();
+  text = text.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ');
+  const rawTokens = text.split(/\s+/);
+  const tokens = [];
+  for (let tok of rawTokens) {
     if (!tok) continue;
-    // Skip variation brackets and their contents (main line only)
-    if (tok[0] === '(' || tok[0] === ')') continue;
-    // Strip leading move numbers: "12.", "12...", "2..."
+    if (tok === '(' || tok === ')') {
+      tokens.push(tok);
+      continue;
+    }
     tok = tok.replace(/^\d+\.\.\./, '').replace(/^\d+\./, '');
     if (!tok) continue;
-    if (SAN_RE.test(tok)) moves.push(tok);
+    tok = tok.replace(/[!?]+$/, '');
+    if (SAN_RE.test(tok)) {
+      tokens.push(tok);
+    }
   }
-  return moves;
+  return tokens;
 }
 
 /**
  * Parse PGN into a tree structure suitable for training
  * Each node represents a position and its children are possible next moves
+ * Supports variations in parentheses ( ... ) skillfully.
  * @param {string} pgn - PGN text
  * @returns {Object} Tree structure: { fen, move, children: Map<san, node> }
  */
@@ -165,36 +173,49 @@ export function parsePGNToTree(pgn) {
   const games = extractGameSegments(pgn);
 
   for (const game of games) {
-    const sans = extractSANMoves(game);
-    if (sans.length === 0) continue;
+    const tokens = tokenizePGN(game);
+    if (tokens.length === 0) continue;
 
-    let currentNode = root;
-    const chess = new Chess();
-    let ok = true;
+    const stack = [{ node: root, chess: new Chess() }];
+    let parent = { node: root, fen: root.fen };
 
-    for (let i = 0; i < sans.length; i++) {
-      let san = sans[i];
+    for (const tok of tokens) {
+      if (tok === '(') {
+        stack.push({
+          node: parent.node,
+          chess: new Chess(parent.fen),
+        });
+        continue;
+      } else if (tok === ')') {
+        if (stack.length > 1) {
+          stack.pop();
+        }
+        continue;
+      }
+
+      const current = stack[stack.length - 1];
+      const beforeFen = current.chess.fen();
       let moveResult;
       try {
-        moveResult = chess.move(san);
+        moveResult = current.chess.move(tok);
       } catch {
-        // Some PGNs disambiguate differently; try ignoring any trailing/leading issue
         moveResult = null;
       }
-      if (!moveResult) { ok = false; break; }
+      if (!moveResult) continue;
 
-      if (!currentNode.children.has(san)) {
-        currentNode.children.set(san, {
-          fen: chess.fen(),
+      parent = { node: current.node, fen: beforeFen };
+
+      if (!current.node.children.has(tok)) {
+        current.node.children.set(tok, {
+          fen: current.chess.fen(),
           move: moveResult,
-          moveSan: san,
+          moveSan: tok,
           children: new Map(),
-          depth: i + 1,
+          depth: current.node.depth + 1,
         });
       }
-      currentNode = currentNode.children.get(san);
+      current.node = current.node.children.get(tok);
     }
-    void ok;
   }
 
   return root;
@@ -211,7 +232,7 @@ export function treeToPGN(root, repertoireName = 'Exported Repertoire') {
   const header = `[Event "${repertoireName}"]\n[Site "CHOC Opening Trainer"]\n[Date "${date}"]\n\n`;
   
   // Build PGN with variations
-  const moveText = traverseToPGN(root);
+  const moveText = traverseToPGN(root, true);
   
   return header + moveText + ' *';
 }
@@ -219,24 +240,30 @@ export function treeToPGN(root, repertoireName = 'Exported Repertoire') {
 /**
  * Traverse tree to build PGN text with variations (parentheses)
  */
-function traverseToPGN(node) {
-  if (node.children.size === 0) return '';
+function traverseToPGN(node, forceMoveNumber = true) {
+  if (!node || node.children.size === 0) return '';
   
   const children = Array.from(node.children.entries());
   if (children.length === 0) return '';
   
   // First child is main line, rest are variations
   const [mainSan, mainChild] = children[0];
-  let text = formatSAN(mainSan, mainChild);
+  let text = formatSAN(mainSan, mainChild, forceMoveNumber);
   
   // Continue the main line
-  text += ' ' + traverseToPGN(mainChild);
+  const mainContinuation = traverseToPGN(mainChild, false);
+  if (mainContinuation) {
+    text += ' ' + mainContinuation;
+  }
   
   // Variations (remaining children)
   for (let i = 1; i < children.length; i++) {
     const [varSan, varChild] = children[i];
-    let varText = formatSAN(varSan, varChild);
-    varText += ' ' + traverseToPGN(varChild);
+    let varText = formatSAN(varSan, varChild, true);
+    const varContinuation = traverseToPGN(varChild, false);
+    if (varContinuation) {
+      varText += ' ' + varContinuation;
+    }
     text += ' ( ' + varText.trim() + ' )';
   }
   
@@ -246,14 +273,17 @@ function traverseToPGN(node) {
 /**
  * Format a single SAN with move number prefix
  */
-function formatSAN(san, child) {
+function formatSAN(san, child, forceMoveNumber = false) {
   const depth = child?.depth || 0;
   if (depth % 2 === 1) {
     // White's move
     return `${Math.ceil(depth / 2)}. ${san}`;
   } else {
-    // Black's move — need move number prefix if after a variation
-    return `${Math.floor(depth / 2)}... ${san}`;
+    // Black's move
+    if (forceMoveNumber) {
+      return `${Math.floor(depth / 2)}... ${san}`;
+    }
+    return san;
   }
 }
 
