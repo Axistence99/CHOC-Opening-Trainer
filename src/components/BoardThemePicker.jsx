@@ -1,4 +1,4 @@
-import { getAllBoardThemes } from '../data/boardThemes';
+import { getAllBoardThemes, getBoardThemePreview } from '../data/boardThemes';
 
 export default function BoardThemePicker({ currentTheme, onThemeChange, compact = false }) {
   const themes = getAllBoardThemes();
@@ -6,10 +6,11 @@ export default function BoardThemePicker({ currentTheme, onThemeChange, compact 
   if (compact) {
     return (
       <div className="space-y-1.5">
-        <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>BOARD THEME</h3>
-        <div className="flex gap-1.5">
+        <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>BOARD</h3>
+        <div className="flex gap-1.5 flex-wrap">
           {themes.map((theme) => {
             const isSelected = currentTheme === theme.id;
+            const preview = getBoardThemePreview(theme.id);
             return (
               <button key={theme.id} onClick={() => onThemeChange(theme.id)} title={theme.name}
                 className="relative w-7 h-7 rounded-md overflow-hidden transition-all"
@@ -21,10 +22,10 @@ export default function BoardThemePicker({ currentTheme, onThemeChange, compact 
                 }}
               >
                 <div className="grid grid-cols-2 grid-rows-2 h-full w-full">
-                  <div style={{ backgroundColor: theme.preview.light }} />
-                  <div style={{ backgroundColor: theme.preview.dark }} />
-                  <div style={{ backgroundColor: theme.preview.dark }} />
-                  <div style={{ backgroundColor: theme.preview.light }} />
+                  <div style={{ backgroundColor: preview.light }} />
+                  <div style={{ backgroundColor: preview.dark }} />
+                  <div style={{ backgroundColor: preview.dark }} />
+                  <div style={{ backgroundColor: preview.light }} />
                 </div>
               </button>
             );
@@ -37,9 +38,10 @@ export default function BoardThemePicker({ currentTheme, onThemeChange, compact 
   return (
     <div className="space-y-2">
       <h3 className="font-orbitron font-semibold text-xs" style={{ color: '#8daac4', letterSpacing: '0.12em' }}>BOARD THEME</h3>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
         {themes.map((theme) => {
           const isSelected = currentTheme === theme.id;
+          const preview = getBoardThemePreview(theme.id);
           return (
             <button key={theme.id} onClick={() => onThemeChange(theme.id)} title={theme.description}
               className="group relative rounded-lg p-2 transition-all hover:scale-105"
@@ -50,10 +52,10 @@ export default function BoardThemePicker({ currentTheme, onThemeChange, compact 
             >
               <div className="w-full aspect-square rounded overflow-hidden mb-1.5">
                 <div className="grid grid-cols-2 grid-rows-2 h-full w-full">
-                  <div style={{ backgroundColor: theme.preview.light }} />
-                  <div style={{ backgroundColor: theme.preview.dark }} />
-                  <div style={{ backgroundColor: theme.preview.dark }} />
-                  <div style={{ backgroundColor: theme.preview.light }} />
+                  <div style={{ backgroundColor: preview.light }} />
+                  <div style={{ backgroundColor: preview.dark }} />
+                  <div style={{ backgroundColor: preview.dark }} />
+                  <div style={{ backgroundColor: preview.light }} />
                 </div>
               </div>
               <p className="font-orbitron text-[9px] font-medium truncate" style={{ color: isSelected ? '#8daac4' : 'rgba(160,152,138,0.6)', letterSpacing: '0.05em' }}>{theme.name}</p>

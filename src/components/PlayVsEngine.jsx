@@ -207,7 +207,7 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit }) {
       <div className="flex flex-col lg:flex-row gap-3 md:gap-4 items-start w-full max-w-4xl">
         {/* Board */}
         <div className="flex-shrink-0 space-y-2 w-full lg:w-auto">
-          <div className="board-appear">
+          <div>
             <div className="relative rounded-lg overflow-hidden" style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}>
               <div style={{ width: boardSize }}>
                 <ChessgroundBoard config={cgConfig} boardTheme={boardColors} />
@@ -235,7 +235,7 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit }) {
         </div>
 
         {/* Side panel */}
-        <div className="flex-1 min-w-0 space-y-2 md:space-y-3 w-full slide-in-right">
+        <div className="flex-1 min-w-0 space-y-2 md:space-y-3 w-full">
           {/* Status */}
           <div className="rounded-xl p-3 md:p-4" style={{
             background: gameStatus === 'checkmate' ? (chess.turn() !== playerColor.charAt(0) ? 'rgba(107,140,174,0.12)' : 'rgba(255,107,107,0.08)') : gameStatus !== 'playing' ? 'rgba(168,131,74,0.12)' : 'rgba(15,20,40,0.6)',

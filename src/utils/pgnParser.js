@@ -144,28 +144,59 @@ export function parsePGNToTree(pgn) {
 
 /**
  * Convert a tree back to PGN format (for export)
+ * Handles variations using parentheses notation
  */
-export function treeToPGN(root) {
-  const games = [];
+export function treeToPGN(root, repertoireName = 'Exported Repertoire') {
+  if (!root || root.children.size === 0) return '';
   
-  function traverse(node, moves) {
-    if (node.children.size === 0) {
-      if (moves.length > 0) {
-        games.push(moves.join(' '));
-      }
-      return;
-    }
-    
-    for (const [san, child] of node.children) {
-      traverse(child, [...moves, san]);
-    }
+  const date = new Date().toISOString().split('T')[0];
+  const header = `[Event "${repertoireName}"]\n[Site "CHOC Opening Trainer"]\n[Date "${date}"]\n\n`;
+  
+  // Build PGN with variations
+  const moveText = traverseToPGN(root);
+  
+  return header + moveText + ' *';
+}
+
+/**
+ * Traverse tree to build PGN text with variations (parentheses)
+ */
+function traverseToPGN(node) {
+  if (node.children.size === 0) return '';
+  
+  const children = Array.from(node.children.entries());
+  if (children.length === 0) return '';
+  
+  // First child is main line, rest are variations
+  const [mainSan, mainChild] = children[0];
+  let text = formatSAN(mainSan, mainChild);
+  
+  // Continue the main line
+  text += ' ' + traverseToPGN(mainChild);
+  
+  // Variations (remaining children)
+  for (let i = 1; i < children.length; i++) {
+    const [varSan, varChild] = children[i];
+    let varText = formatSAN(varSan, varChild);
+    varText += ' ' + traverseToPGN(varChild);
+    text += ' ( ' + varText.trim() + ' )';
   }
   
-  traverse(root, []);
-  
-  return games.map((moveText, i) => {
-    return `[Event "Exported Repertoire"]\n[Site "CHOC Opening Trainer"]\n[Date "${new Date().toISOString().split('T')[0]}"]\n\n${formatMoveText(moveText)} *`;
-  }).join('\n\n');
+  return text.trim();
+}
+
+/**
+ * Format a single SAN with move number prefix
+ */
+function formatSAN(san, child) {
+  const depth = child?.depth || 0;
+  if (depth % 2 === 1) {
+    // White's move
+    return `${Math.ceil(depth / 2)}. ${san}`;
+  } else {
+    // Black's move — need move number prefix if after a variation
+    return `${Math.floor(depth / 2)}... ${san}`;
+  }
 }
 
 /**

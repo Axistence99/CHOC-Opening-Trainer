@@ -16,7 +16,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "stockfish.js": "^10.0.2",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "ts-fsrs": "^5.4.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

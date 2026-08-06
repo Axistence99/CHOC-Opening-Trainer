@@ -3,9 +3,9 @@ import { getRepertoires, saveRepertoires, getPracticeHistory, getSettings, saveS
 import { parsePGNToTree, countPositions } from './utils/pgnParser';
 import { addRepertoire } from './utils/storage';
 import LandingPage from './components/LandingPage';
-import PracticeMode from './components/PracticeMode';
+import RepertoirePage from './components/RepertoirePage';
 
-const VIEWS = { HOME: 'home', PRACTICE: 'practice' };
+const VIEWS = { HOME: 'home', REPERTOIRE: 'repertoire' };
 
 export default function App() {
   const [currentView, setCurrentView] = useState(VIEWS.HOME);
@@ -22,12 +22,17 @@ export default function App() {
 
   const handleSelectRepertoire = useCallback((rep) => {
     setSelectedRepertoire(rep);
-    setCurrentView(VIEWS.PRACTICE);
+    setCurrentView(VIEWS.REPERTOIRE);
   }, []);
 
-  const handleExitPractice = useCallback(() => {
+  const handleExitRepertoire = useCallback(() => {
     setSelectedRepertoire(null);
     setCurrentView(VIEWS.HOME);
+    setRepertoires(getRepertoires());
+  }, []);
+
+  const handleRepertoireUpdate = useCallback((updatedRep) => {
+    setSelectedRepertoire(updatedRep);
     setRepertoires(getRepertoires());
   }, []);
 
@@ -47,12 +52,13 @@ export default function App() {
           onSelectRepertoire={handleSelectRepertoire}
         />
       )}
-      {currentView === VIEWS.PRACTICE && (
-        <PracticeMode
+      {currentView === VIEWS.REPERTOIRE && selectedRepertoire && (
+        <RepertoirePage
           repertoire={selectedRepertoire}
-          onExit={handleExitPractice}
+          onExit={handleExitRepertoire}
           boardTheme={boardTheme}
           onBoardThemeChange={handleBoardThemeChange}
+          onRepertoireUpdate={handleRepertoireUpdate}
         />
       )}
     </>

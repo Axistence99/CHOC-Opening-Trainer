@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import { parsePGNToTree, getLeafPaths } from '../utils/pgnParser';
 import { getPracticeHistory, updatePracticeEntry } from '../utils/storage';
 import { getOpeningFromMoves } from '../data/ecoOpenings';
-import { getBoardTheme } from '../data/boardThemes';
+import { getBoardTheme, getBoardThemeBackground } from '../data/boardThemes';
 import BoardThemePicker from './BoardThemePicker';
 import ChessgroundBoard from './ChessgroundBoard';
 
@@ -260,6 +260,7 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
   const isUserTurn = mode === 'training' && status === STATUS.USER_TURN;
   const isComplete = status === STATUS.LINE_COMPLETE;
   const theme = getBoardTheme(boardTheme);
+  const boardBg = getBoardThemeBackground(boardTheme);
 
   const dests = useMemo(() => computeDests(position), [position]);
   const turnColor = position.includes(' w ') ? 'white' : 'black';
@@ -353,11 +354,11 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
       {/* Board + Controls */}
       <div className="flex flex-col lg:flex-row gap-3 md:gap-4 items-start">
         <div className="flex-shrink-0 space-y-2 w-full lg:w-auto">
-          <div className="board-appear">
+          <div>
             <div className="rounded-lg overflow-hidden" style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.5)', width: 'min(calc(100vw - 40px), 520px)' }}>
               <ChessgroundBoard
                 config={cgConfig}
-                boardTheme={{ light: theme.lightSquare, dark: theme.darkSquare }}
+                boardTheme={boardBg}
               />
             </div>
           </div>
@@ -369,7 +370,7 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
         </div>
 
         {/* Side Panel */}
-        <div className="flex-1 min-w-0 space-y-2 md:space-y-3 lg:max-w-xs w-full slide-in-right">
+        <div className="flex-1 min-w-0 space-y-2 md:space-y-3 lg:max-w-xs w-full">
 
           {/* ─── STUDY MODE PANEL ─── */}
           {mode === 'study' && (

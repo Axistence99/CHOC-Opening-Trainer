@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
@@ -23,6 +23,10 @@ function makeBoardURI(light, dark) {
 /**
  * React wrapper for chessground — Lichess's interactive board.
  *
+ * Board theme prop supports two formats:
+ *  - { light, dark }  — SVG-generated checkerboard from two colors
+ *  - { image: url }   — Background image from a CDN URL (e.g. Lichess board images)
+ *
  * CRITICAL FOR PIECE POSITIONING:
  * - Both width AND height are set to the same boardPx (multiple of 8)
  * - chessground pieces use 12.5% width/height + transform:translate() for positioning
@@ -35,8 +39,8 @@ export default function ChessgroundBoard({ config, boardTheme }) {
   const containerRef = useRef(null);
   const cgRef = useRef(null);
   const [boardPx, setBoardPx] = useState(0);
-  const configRef = useRef(config);
-  configRef.current = config;
+  const boardThemeRef = useRef(boardTheme);
+  boardThemeRef.current = boardTheme;
 
   // Measure parent width and lock to multiple-of-8 px
   useLayoutEffect(() => {
@@ -67,6 +71,31 @@ export default function ChessgroundBoard({ config, boardTheme }) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Apply board colors directly to DOM — called once on mount and on theme change only.
+  // NEVER re-run on FEN change (that was causing board color flash on every move).
+  // Supports both { light, dark } (SVG) and { image: url } (CDN) board themes.
+  const applyBoardColors = useCallback(() => {
+    if (!containerRef.current || !boardThemeRef.current) return;
+    const boardEl = containerRef.current.querySelector('cg-board');
+    if (boardEl) {
+      const bt = boardThemeRef.current;
+      // Use setProperty with 'important' priority to override the CSS !important
+      // default (DeepBoard) set in index.css
+      if (bt.image) {
+        // Image-based theme from Lichess CDN
+        boardEl.style.setProperty('background-color', 'transparent', 'important');
+        boardEl.style.setProperty('background-image', `url('${bt.image}')`, 'important');
+      } else {
+        // SVG-generated checkerboard from light/dark colors
+        boardEl.style.setProperty('background-color', bt.dark, 'important');
+        boardEl.style.setProperty('background-image', makeBoardURI(bt.light, bt.dark), 'important');
+      }
+      boardEl.style.setProperty('background-size', 'cover', 'important');
+      boardEl.style.setProperty('background-position', '0 0', 'important');
+      boardEl.style.setProperty('background-repeat', 'no-repeat', 'important');
+    }
+  }, []);
+
   // Initialize chessground once we have locked dimensions
   useEffect(() => {
     if (boardPx <= 0 || !containerRef.current) return;
@@ -74,30 +103,9 @@ export default function ChessgroundBoard({ config, boardTheme }) {
       cgRef.current.destroy();
       cgRef.current = null;
     }
-    const cg = Chessground(containerRef.current, configRef.current);
-    cgRef.current = cg;
-
-    // Force bounds recalculation after the browser has completed layout.
-    // This is critical because chessground reads getBoundingClientRect() on init,
-    // which may return stale or incorrect dimensions if called too early.
-    // The requestAnimationFrame ensures the browser has painted at least once
-    // with the correct dimensions before we ask chessground to re-render.
-    const raf1 = requestAnimationFrame(() => {
-      if (cgRef.current) {
-        cgRef.current.set(configRef.current);
-      }
-      // Second frame for extra safety (ensures paint has definitely happened)
-      const raf2 = requestAnimationFrame(() => {
-        if (cgRef.current) {
-          cgRef.current.set(configRef.current);
-        }
-      });
-      // Store raf2 for cleanup (we can't store it in a ref easily, so use a closure)
-      return () => cancelAnimationFrame(raf2);
-    });
-
+    cgRef.current = Chessground(containerRef.current, config);
+    applyBoardColors();
     return () => {
-      cancelAnimationFrame(raf1);
       if (cgRef.current) {
         cgRef.current.destroy();
         cgRef.current = null;
@@ -112,33 +120,19 @@ export default function ChessgroundBoard({ config, boardTheme }) {
     }
   }, [config, boardPx]);
 
-  // Apply custom board colors — use useLayoutEffect to avoid flicker.
-  // Must FULLY override chessground.brown.css which sets background-color
-  // and background-image on cg-board. We set all background properties
-  // to ensure no leftover from the brown CSS bleeds through.
-  useLayoutEffect(() => {
-    if (!containerRef.current || !boardTheme) return;
-    const boardEl = containerRef.current.querySelector('cg-board');
-    if (boardEl) {
-      boardEl.style.backgroundColor = boardTheme.dark;
-      boardEl.style.backgroundImage = makeBoardURI(boardTheme.light, boardTheme.dark);
-      boardEl.style.backgroundSize = 'cover';
-      boardEl.style.backgroundPosition = '0 0';
-      boardEl.style.backgroundRepeat = 'no-repeat';
-    }
-  }, [boardTheme, config?.fen, boardPx]);
+  // Re-apply board colors when theme changes (NOT on every FEN change)
+  useEffect(() => {
+    applyBoardColors();
+  }, [boardTheme, boardPx, applyBoardColors]);
 
   return (
     <div
       ref={containerRef}
       className="cg-wrap"
       style={{
-        // Both width and height as explicit px — perfect square, integer width/8
         width: boardPx > 0 ? `${boardPx}px` : '100%',
         height: boardPx > 0 ? `${boardPx}px` : undefined,
-        // Phase 1 (before measurement): let aspect-ratio derive height
         aspectRatio: boardPx > 0 ? undefined : '1 / 1',
-        // Prevent mobile browsers from adding odd spacing
         lineHeight: 0,
       }}
     />

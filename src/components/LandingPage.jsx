@@ -3,6 +3,7 @@ import { Chess } from 'chess.js';
 import { getRepertoires, addRepertoire } from '../utils/storage';
 import { parsePGNToTree, countPositions } from '../utils/pgnParser';
 import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires';
+import { getAllBoardThemes, getBoardTheme, getBoardThemeBackground, getBoardThemePreview } from '../data/boardThemes';
 import ChessgroundBoard from './ChessgroundBoard';
 import PlayVsEngine from './PlayVsEngine';
 
@@ -69,11 +70,7 @@ function tagColor(tag) {
   return map[tag] || 'bg-slate-800/40 text-slate-400/80 border-slate-700/30';
 }
 
-const BOARD_THEMES_MAP = {
-  space:    { light: '#c8d9e8', dark: '#2d4a6e', label: 'DeepBoard',  accent: '#6b8cae' },
-  lichess:  { light: '#edeed1', dark: '#779952', label: 'Lichess',    accent: '#779952' },
-  marble:   { light: '#f0d9b5', dark: '#b58863', label: 'Marble',     accent: '#b58863' },
-};
+// No BOARD_THEMES_MAP here — all board themes come from boardThemes.js
 
 // Piece sets from Lichess — all CC0, MIT, Apache 2.0, or GPLv2+
 // See: https://github.com/lichess-org/lila/blob/master/COPYING.md
@@ -86,6 +83,10 @@ const PIECE_SETS = {
   kiwen:     { label: 'Kiwen-suwi', license: 'CC-BY',  preview: '🔺' },
 };
 
+// Lichess piece file naming: K=king, Q=queen, R=rook, B=bishop, N=knight, P=pawn
+// Note: knight uses 'N' (kNight), NOT 'K' — role[0] would give 'k'→'K' which is WRONG
+const ROLE_LETTER = { king: 'K', queen: 'Q', rook: 'R', bishop: 'B', knight: 'N', pawn: 'P' };
+
 // Generate CSS for piece set URLs from Lichess CDN
 // Uses !important to override the bundled cburnett CSS (Vite bundles it as <style>,
 // not <link>, so we can't disable it — we must win with !important specificity).
@@ -97,7 +98,7 @@ function generatePieceSetCSS(setKey) {
   let css = '';
   for (const color of colors) {
     for (const role of roles) {
-      const letter = role[0].toUpperCase();
+      const letter = ROLE_LETTER[role];
       const colorLetter = color[0];
       css += `.cg-wrap piece.${role}.${color} { background-image: url('${baseUrl}${colorLetter}${letter}.svg') !important; background-size: cover !important; }\n`;
     }
@@ -110,17 +111,16 @@ function generatePieceSetCSS(setKey) {
 function preloadPieceSetSVGs(setKey) {
   if (setKey === 'cburnett') return Promise.resolve(); // bundled, no preload needed
   const baseUrl = `https://lichess1.org/assets/piece/${setKey}/`;
-  const roles = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
+  const letters = ['K', 'Q', 'R', 'B', 'N', 'P']; // N = knight
   const colors = ['w', 'b'];
   const loads = [];
   for (const color of colors) {
-    for (const role of roles) {
-      const letter = role[0].toUpperCase();
+    for (const letter of letters) {
       const url = `${baseUrl}${color}${letter}.svg`;
       loads.push(new Promise((resolve) => {
         const img = new Image();
         img.onload = resolve;
-        img.onerror = resolve; // resolve anyway so we don't block forever
+        img.onerror = resolve;
         img.src = url;
       }));
     }
@@ -234,7 +234,10 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const currentTurnColor = positions[moveIndex]?.turnColor || 'white';
   const dests = useMemo(() => computeDests(currentFen), [currentFen]);
 
-  // Chessground config
+  // Chessground config — landing page board is DISPLAY-ONLY.
+  // Users step through the opening with navigation buttons.
+  // Free piece dragging is disabled to avoid bugs with move matching.
+  // The PRACTICE button opens the full interactive mode.
   const cgConfig = useMemo(() => ({
     fen: currentFen,
     orientation,
@@ -251,26 +254,21 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     },
     movable: {
       free: false,
-      dests,
-      showDests: true,
-      color: 'both',
-      events: {
-        after: handleUserMove,
-      },
+      dests: new Map(), // no legal moves — display only
+      showDests: false,
+      color: undefined,
     },
     draggable: {
-      enabled: true,
-      showGhost: true,
+      enabled: false,
     },
     selectable: {
-      enabled: true,
+      enabled: false,
     },
     drawable: {
-      enabled: true,
+      enabled: false,
       visible: true,
-      eraseOnClick: true,
     },
-  }), [currentFen, orientation, currentTurnColor, currentLastMove, dests, handleUserMove]);
+  }), [currentFen, orientation, currentTurnColor, currentLastMove]);
 
   // Inject piece set CSS synchronously BEFORE paint to avoid flash of wrong pieces.
   // useLayoutEffect fires synchronously after DOM mutation but before the browser paints.
@@ -304,10 +302,15 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   };
 
   const handlePractice = () => {
-    const matching = PREBUILT_REPERTOIRES.find(p =>
+    // Try to find a prebuilt repertoire matching the selected opening
+    let matching = PREBUILT_REPERTOIRES.find(p =>
       activeOpening.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]) ||
       p.name.toLowerCase().includes(activeOpening.name.toLowerCase().split(' ')[0])
     );
+    // Fallback to first prebuilt repertoire if no match
+    if (!matching && PREBUILT_REPERTOIRES.length > 0) {
+      matching = PREBUILT_REPERTOIRES[0];
+    }
     if (matching) {
       const repertoires = getRepertoires();
       if (!repertoires.some(r => r.id === matching.id)) {
@@ -318,16 +321,27 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
           addRepertoire(newRep);
         } catch (e) { console.error(e); }
       }
-      onSelectRepertoire(matching);
-    } else {
-      const repertoires = getRepertoires();
-      if (repertoires.length > 0) {
-        onSelectRepertoire(repertoires[0]);
+      // Ensure the repertoire has a parsed tree before passing it
+      const existingRep = getRepertoires().find(r => r.id === matching.id);
+      if (existingRep && existingRep.tree) {
+        onSelectRepertoire(existingRep);
+      } else if (existingRep) {
+        try {
+          const tree = parsePGNToTree(existingRep.pgn);
+          const repWithTree = { ...existingRep, tree };
+          onSelectRepertoire(repWithTree);
+        } catch (e) {
+          console.error(e);
+          onSelectRepertoire(existingRep);
+        }
+      } else {
+        onSelectRepertoire(matching);
       }
     }
   };
 
-  const theme = BOARD_THEMES_MAP[currentBoardTheme] || BOARD_THEMES_MAP.space;
+  const themeObj = getBoardTheme(currentBoardTheme);
+  const boardBg = getBoardThemeBackground(currentBoardTheme);
   const activeOpening = selectedOpening;
   const boardSize = 'min(calc(100vw - 40px), 560px)';
 
@@ -341,7 +355,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         <div className="relative p-2 md:p-0" style={{ zIndex: 1 }}>
           <PlayVsEngine
             playerColor={playVsEngine}
-            boardTheme={{ light: theme.light, dark: theme.dark }}
+            boardTheme={boardBg}
             onExit={() => setPlayVsEngine(null)}
           />
         </div>
@@ -364,7 +378,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       {/* Main layout */}
       <div className="relative flex flex-col min-h-screen" style={{ zIndex: 1 }}>
         {/* Header */}
-        <header className="flex items-center justify-between px-3 md:px-8 py-2.5 md:py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.6)', backdropFilter: 'blur(12px)' }}>
+        <header className="flex items-center justify-between px-3 md:px-8 py-2.5 md:py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.85)' }}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 flex items-center justify-center text-2xl">♟</div>
             <div>
@@ -390,19 +404,23 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
 
         {/* Settings panel */}
         {settingsOpen && (
-          <div className="border-b px-3 md:px-8 py-3 md:py-4 overflow-x-auto" style={{ background: 'rgba(6,8,16,0.85)', borderColor: 'rgba(107,140,174,0.1)', backdropFilter: 'blur(12px)' }}>
+          <div className="border-b px-3 md:px-8 py-3 md:py-4 overflow-x-auto" style={{ background: 'rgba(6,8,16,0.92)', borderColor: 'rgba(107,140,174,0.1)' }}>
             <div className="flex flex-nowrap md:flex-wrap gap-4 md:gap-8 min-w-max md:min-w-0">
               <div>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#8daac4', fontSize: '0.6rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }}>BOARD</div>
-                <div className="flex gap-2">
-                  {Object.entries(BOARD_THEMES_MAP).map(([key, t]) => (
-                    <button key={key} onClick={() => handleThemeChange(key)} className="flex flex-col items-center gap-1.5 transition-all hover:scale-105" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}>
-                      <div className="rounded overflow-hidden" style={{ width: 40, height: 40, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', outline: currentBoardTheme === key ? `2px solid ${t.accent}` : '2px solid transparent', outlineOffset: 2 }}>
-                        {Array.from({ length: 16 }, (_, i) => <div key={i} style={{ background: (Math.floor(i / 4) + i) % 2 === 0 ? t.light : t.dark }} />)}
-                      </div>
-                      <span style={{ fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", color: currentBoardTheme === key ? '#fff' : 'rgba(150,142,130,0.5)', letterSpacing: '0.05em' }}>{t.label}</span>
-                    </button>
-                  ))}
+                <div className="flex gap-2 flex-wrap">
+                  {getAllBoardThemes().map((t) => {
+                    const preview = getBoardThemePreview(t.id);
+                    const isActive = currentBoardTheme === t.id;
+                    return (
+                      <button key={t.id} onClick={() => handleThemeChange(t.id)} className="flex flex-col items-center gap-1.5 transition-all hover:scale-105" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}>
+                        <div className="rounded overflow-hidden" style={{ width: 40, height: 40, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', outline: isActive ? `2px solid ${t.accent}` : '2px solid transparent', outlineOffset: 2 }}>
+                          {Array.from({ length: 16 }, (_, i) => <div key={i} style={{ background: (Math.floor(i / 4) + i) % 2 === 0 ? preview.light : preview.dark }} />)}
+                        </div>
+                        <span style={{ fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", color: isActive ? '#fff' : 'rgba(150,142,130,0.5)', letterSpacing: '0.05em' }}>{t.name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="w-px self-stretch" style={{ background: 'rgba(107,140,174,0.12)' }} />
@@ -451,18 +469,18 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         <div className="flex flex-1 overflow-hidden">
           {/* Center — Chessboard */}
           <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-8 gap-3 md:gap-6">
-            <div className="md:hidden text-center mb-1">
+            {playerColor && <div className="md:hidden text-center mb-1">
               <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.8rem' }}>{activeOpening.name}</div>
               <div style={{ color: '#94a3b8', fontSize: '0.6rem', marginTop: 1 }}>ECO {activeOpening.eco}</div>
-            </div>
+            </div>}
 
             {/* Interactive Chess Board */}
-            <div className="board-appear relative">
+            <div className="relative">
               <div className="relative rounded-lg overflow-hidden p-1.5 md:p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
                 <div style={{ width: boardSize }}>
                   <ChessgroundBoard
                     config={cgConfig}
-                    boardTheme={{ light: theme.light, dark: theme.dark }}
+                    boardTheme={boardBg}
                   />
                 </div>
               </div>
@@ -515,9 +533,9 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
               )}
             </div>
 
-            {/* Controls */}
-            <div className="flex flex-col items-center gap-2 md:gap-3 w-full max-w-sm md:max-w-md">
-              <div className="w-full rounded-lg px-3 md:px-4 py-1.5 md:py-2.5 text-center" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.14)', backdropFilter: 'blur(8px)' }}>
+            {/* Controls — only shown after user picks a color */}
+            {playerColor && <div className="flex flex-col items-center gap-2 md:gap-3 w-full max-w-sm md:max-w-md">
+              <div className="w-full rounded-lg px-3 md:px-4 py-1.5 md:py-2.5 text-center" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.14)' }}>
                 <div style={{ color: '#a8834a', fontFamily: "'Orbitron', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em' }}>{currentAnnotation}</div>
               </div>
               <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(107,140,174,0.08)' }}>
@@ -535,11 +553,11 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                 <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} className="flex-1 px-3 py-2 md:py-2.5 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(107,140,174,0.08)', border: '1px solid rgba(107,140,174,0.18)', color: '#8daac4', fontFamily: "'Orbitron', sans-serif", fontSize: '0.6rem', letterSpacing: '0.08em', cursor: 'pointer' }}>⟳ FLIP</button>
                 <button onClick={handlePractice} className="flex-[2] px-4 md:px-6 py-2 md:py-3 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', fontFamily: "'Orbitron', sans-serif", fontSize: '0.7rem', letterSpacing: '0.1em', cursor: 'pointer', boxShadow: '0 0 20px rgba(107,140,174,0.1)' }}>♠ PRACTICE</button>
               </div>
-            </div>
+            </div>}
           </main>
 
           {/* Sidebar */}
-          <aside className={`fixed md:relative inset-y-0 right-0 md:inset-auto w-[280px] md:w-80 lg:w-96 flex flex-col transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`} style={{ background: 'rgba(6,8,16,0.92)', borderLeft: '1px solid rgba(107,140,174,0.12)', backdropFilter: 'blur(20px)', zIndex: 50 }}>
+          <aside className={`fixed md:relative inset-y-0 right-0 md:inset-auto w-[280px] md:w-80 lg:w-96 flex flex-col transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`} style={{ background: 'rgba(6,8,16,0.97)', borderLeft: '1px solid rgba(107,140,174,0.12)', zIndex: 50 }}>
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.1)' }}>
               <div>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.15em' }}>{playerColor ? 'REPERTOIRES' : 'CHOOSE COLOR'}</div>
@@ -642,7 +660,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
 
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
-        <div className="fixed inset-0 md:hidden" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 40 }} onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 md:hidden" style={{ background: 'rgba(0,0,0,0.7)', zIndex: 40 }} onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Footer — License & Credits */}

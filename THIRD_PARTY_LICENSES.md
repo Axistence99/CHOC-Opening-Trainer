@@ -89,6 +89,42 @@ Full licensing details: [Lichess COPYING.md](https://github.com/lichess-org/lila
 
 ---
 
+## Board Themes (from Lichess)
+
+Board theme images are served from the Lichess CDN
+(`https://lichess1.org/assets/images/board/`) and are part of the
+[Lichess lila repository](https://github.com/lichess-org/lila).
+
+Full licensing details: [Lichess COPYING.md](https://github.com/lichess-org/lila/blob/master/COPYING.md)
+
+The following Lichess board themes are available:
+- **Brown** (`brown.png`) — Lichess default
+- **Blue** (`blue.png`) — Cool blue
+- **Blue 2** (`blue2.jpg`) — Blue marble
+- **Blue 3** (`blue3.jpg`) — Deep blue
+- **Grey** (`grey.jpg`) — Grey textured
+- **Marble** (`marble.jpg`) — Marble textured
+- **Purple** (`purple.png`) — Purple
+- **Purple Diag** (`purple-diag.png`) — Purple diagonal
+- **Newspaper** (`svg/newspaper.svg`) — Black & white
+- **Maple** (`maple.jpg`) — Maple wood
+- **Wood** (`wood4.jpg`) — Wood textured
+- **Olive** (`olive.jpg`) — Olive
+- **Metal** (`metal.jpg`) — Metallic
+- **ICC** (`ic.png`) — ICC marble
+- **Horsey** (`horsey.jpg`) — Fun horsey
+- **Green Plastic** (`green-plastic.png`) — Green plastic
+- **Pink** (`pink-pyramid.png`) — Pink pyramid
+- **Canvas** (`canvas2.jpg`) — Canvas textured
+- **Leather** (`leather.jpg`) — Leather textured
+- **Blue Marble** (`blue-marble.jpg`) — Blue marble textured
+
+All Lichess board images are licensed under **AGPL-3.0-or-later** as part of the lila project.
+
+The **DeepBoard** theme is original to CHOC Opening Trainer and is not derived from any third-party design.
+
+---
+
 ## Board Square Themes (from chessground)
 
 ### chessground.brown.css

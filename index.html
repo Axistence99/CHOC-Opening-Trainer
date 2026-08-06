@@ -15,12 +15,13 @@
         if (ps && ps !== 'cburnett') {
           var base = 'https://lichess1.org/assets/piece/' + ps + '/';
           var roles = ['king','queen','rook','bishop','knight','pawn'];
+          var letters = {king:'K',queen:'Q',rook:'R',bishop:'B',knight:'N',pawn:'P'};
           var colors = ['white','black'];
           var css = '';
           for (var ci = 0; ci < colors.length; ci++) {
             for (var ri = 0; ri < roles.length; ri++) {
               var cl = colors[ci][0];
-              var rl = roles[ri][0].toUpperCase();
+              var rl = letters[roles[ri]];
               css += '.cg-wrap piece.' + roles[ri] + '.' + colors[ci] +
                 ' { background-image: url(' + JSON.stringify(base + cl + rl + '.svg') +
                 ') !important; background-size: cover !important; }\n';
