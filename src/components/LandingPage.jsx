@@ -397,14 +397,12 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-6">
+            <div className="hidden md:flex items-center">
               <div style={{ color: 'rgba(170,162,148,0.75)', fontSize: '0.8rem' }}>
                 <span style={{ color: '#8daac4' }}>{allOpenings.length}</span> Repertoires
               </div>
-              <div className="h-4 w-px" style={{ background: 'rgba(107,140,174,0.22)' }} />
-              <div style={{ color: 'rgba(170,162,148,0.75)', fontSize: '0.8rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em' }}>← → Navigate</div>
             </div>
-            <button onClick={() => setEditorOpen(true)} title="Create Repertoire" className="flex items-center justify-center gap-1.5 px-3 h-9 rounded-lg transition-all hover:scale-105 text-xs font-orbitron" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', letterSpacing: '0.08em', cursor: 'pointer' }}>＋ CREATE</button>
+            <button onClick={() => setEditorOpen(true)} title="Create Opening Repertoire" className="flex items-center justify-center gap-1.5 px-3 md:px-4 h-9 rounded-lg transition-all hover:scale-105 text-xs font-orbitron font-semibold" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', letterSpacing: '0.06em', cursor: 'pointer' }}>＋ CREATE OPENING REPERTOIRE</button>
             <button onClick={() => setSettingsOpen(v => !v)} title="Board Settings" className="flex items-center justify-center w-9 h-9 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: settingsOpen ? 'rgba(107,140,174,0.18)' : 'rgba(107,140,174,0.07)', border: `1px solid ${settingsOpen ? 'rgba(107,140,174,0.35)' : 'rgba(107,140,174,0.14)'}`, color: settingsOpen ? '#8daac4' : '#475569', fontSize: '1rem', cursor: 'pointer' }}>⚙</button>
             <button className="md:hidden flex flex-col gap-1 p-2" onClick={() => setSidebarOpen(v => !v)} aria-label="Toggle repertoires">
               {[0,1,2].map(i => <div key={i} className="w-5 h-0.5 rounded" style={{ background: '#8daac4' }} />)}
