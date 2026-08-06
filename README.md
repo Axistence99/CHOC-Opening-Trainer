@@ -8,14 +8,19 @@ A free, open-source chess opening repertoire trainer that runs entirely in your 
 
 - 📚 **Pre-built Repertoires** — Beginner-friendly opening lines for White & Black
 - 📥 **PGN Import** — Import your own PGN files or paste from Lichess Studies, ChessBase, etc.
-- 🧠 **Spaced Repetition** — SM-2 algorithm tracks which lines you need to review
+- 🧠 **FSRS Spaced Repetition** — The same scheduling algorithm as Anki 23.10+, tracking when each line needs review
 - 🎯 **Interactive Practice** — Drag & click moves on a Lichess-grade chessboard (chessground)
-- 💡 **Hints** — See the correct move when you're stuck
+- ⚔ **Sparring Mode** — Free-form play vs Stockfish from your repertoire tree with live deviation detection (off-book moves flagged, prepared move shown as a green arrow)
+- 💡 **Progressive Hints** — Press `H` (or the Hint button) once to light up the source square, twice for the full arrow. Using a hint downgrades the rating to *Hard*
+- 🏷 **Move Quality Glyphs** — Correct/wrong moves are stamped `!`, `!?`, or `?` on the board
+- ⏱ **Session & Daily Caps** — Limits answerable moves per session/day plus an "All caught up" screen with *Train further* / *Retrain from scratch* actions
+- ▶️ **Auto-Advance** — Automatically moves to the next line after a correct answer (configurable pace)
+- 📋 **Copy Line** — One-click copy of the current move sequence to the clipboard
+- 📤 **PGN Export** — Export any repertoire as a `.pgn` file (with variations)
+- 📱 **PWA + Offline** — Installable as a standalone app; works fully offline after first visit (incl. engine play)
 - 🎨 **Board Themes** — 6 color themes: Lichess, Marble, Grey & Black, Blue, Wood, Emerald
 - ♟️ **Piece Sets** — 6 free/open piece sets from Lichess (CC0, GPLv2+, Apache 2.0)
-- 💾 **Offline & Private** — All data saved in your browser, no account needed
-- 📱 **Mobile Friendly** — Responsive design works on phones and tablets
-- 🔄 **PGN Export** — Export your repertoire anytime for backup
+- 🔒 **Private by default** — All data saved in your browser, no account needed
 
 ## Pre-built Repertoires
 
@@ -91,6 +96,24 @@ Then open **http://localhost:5173** in your browser.
 npm run build
 # Deploy the dist/ folder to GitHub Pages
 ```
+
+## PWA / Offline
+
+CHOC is a Progressive Web App. After visiting once, it works fully offline:
+
+- **Install** — Use your browser's *Add to Home Screen* / *Install app*.
+- **Offline use** — The app shell and the Stockfish engine are cached, so you can keep drilling and even play vs the engine with no connection.
+- The service worker (`public/sw.js`) uses cache-first runtime caching with an offline fallback.
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|---|---|
+| `←` `→` | Previous / next move (Study) |
+| `Home` / `End` | Reset / jump to end (Study) |
+| `F` | Flip board |
+| `H` | Progressive hint (train) |
+| `Esc` | Clear hint arrows |
 
 ## Importing PGNs
 

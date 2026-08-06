@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Chess } from 'chess.js';
-import { parsePGNToTree, getLeafPaths, countPositions } from '../utils/pgnParser';
-import { updatePracticeEntry, updateRepertoire } from '../utils/storage';
+import { parsePGNToTree, getLeafPaths, countPositions, treeToPGN } from '../utils/pgnParser';
+import { updatePracticeEntry, updateRepertoire, getSettings, resetAllCards } from '../utils/storage';
 import { getOpeningFromMoves } from '../data/ecoOpenings';
 import { getBoardTheme, getBoardThemeBackground } from '../data/boardThemes';
 import BoardThemePicker from './BoardThemePicker';
 import ChessgroundBoard from './ChessgroundBoard';
+import SparringMode from './SparringMode';
 
 function computeDests(fen) {
   try {
@@ -82,6 +83,41 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [lineIndex, setLineIndex] = useState(0);
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   const [wrongSquare, setWrongSquare] = useState(null); // { from, to } for red X
+
+  // ─── New drill features ───
+  const [settings] = useState(() => getSettings()); // sessionCap, dailyNewCap, drillPace, lineWalkEnabled, showHints
+  const [hintStage, setHintStage] = useState(0);        // 0=none, 1=source square, 2=full arrow
+  const [hintShapes, setHintShapes] = useState([]);
+  const [moveGlyph, setMoveGlyph] = useState(null);     // { square, glyph, tone } stamped after a move
+  const [sessionCount, setSessionCount] = useState(0);  // cards answered this session
+  const [sessionCap, setSessionCap] = useState(settings.sessionCap || 50);
+  const [allCaughtUp, setAllCaughtUp] = useState(false);
+  const [retraining, setRetraining] = useState(false);
+  const [sparMode, setSparMode] = useState(false);      // true → render SparringMode
+  const [autoAdvance, setAutoAdvance] = useState(settings.drillPace > 0);
+  const [copyMsg, setCopyMsg] = useState(false);
+  const copyTimerRef = useRef(null);
+
+  // Track daily new cards done today (persisted)
+  const [dailyCount, setDailyCount] = useState(() => {
+    try {
+      const d = localStorage.getItem('choc-daily-new');
+      if (d) {
+        const parsed = JSON.parse(d);
+        const today = new Date().toDateString();
+        if (parsed.date === today) return parsed.count;
+      }
+    } catch {}
+    return 0;
+  });
+
+  const bumpDailyCount = useCallback(() => {
+    setDailyCount((c) => {
+      const n = c + 1;
+      try { localStorage.setItem('choc-daily-new', JSON.stringify({ date: new Date().toDateString(), count: n })); } catch {}
+      return n;
+    });
+  }, []);
 
   // Edit state
   const [editName, setEditName] = useState('');
@@ -242,7 +278,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setWrongSquare(null);
       setTrainStatus('correct');
       setStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
+      // Move quality glyph: ! for a clean first-try, !? if a hint was used
+      setMoveGlyph(hintStage > 0 ? { square: dest, glyph: '!?', tone: 'amber' } : { square: dest, glyph: '!', tone: 'good' });
       updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 5);
+      setHintShapes([]);
+      setHintStage(0);
+      handleSessionProgress();
+      bumpDailyCount();
 
       const nextNode = expectedMoves.get(san);
       setCurrentNode(nextNode);
@@ -298,9 +340,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       // ❌ WRONG — show red X, then rewind with animation
       chess.undo();
       setWrongSquare({ from: orig, to: dest });
+      setMoveGlyph({ square: dest, glyph: '?', tone: 'bad' });
       setTrainStatus('wrong');
       setStats(prev => ({ ...prev, wrong: prev.wrong + 1, total: prev.total + 1 }));
       updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 1);
+      handleSessionProgress();
 
       const correctSans = Array.from(expectedMoves.keys());
       setTrainMessage(`Wrong! Correct: ${correctSans.join(', ')}`);
@@ -308,11 +352,12 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       // Clear red X and reset status after animation
       setTimeout(() => {
         setWrongSquare(null);
+        setMoveGlyph(null);
         setTrainStatus('user_turn');
         setTrainMessage('Your turn — try again');
       }, 800);
     }
-  }, [chess, trainStatus, expectedMoves, repertoire]);
+  }, [chess, trainStatus, expectedMoves, repertoire, hintStage, handleSessionProgress, bumpDailyCount]);
 
   const handleNextLine = useCallback(() => {
     const ni = lineIndex + 1;
@@ -330,6 +375,92 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const handleRestartLine = useCallback(() => {
     startTrainLine(allLines, lineIndex, tree);
   }, [allLines, lineIndex, tree, startTrainLine]);
+
+  // ─── PROGRESSIVE HINTS ───
+  // Stage 1 = source square glows; Stage 2 = full arrow. Hint downgrades the rating to Hard.
+  const handleShowHint = useCallback(() => {
+    if (expectedMoves.size === 0 || trainStatus !== 'user_turn') return;
+    const shapes = [];
+    for (const san of expectedMoves.keys()) {
+      const tc = new Chess(chess.fen());
+      const m = tc.move(san);
+      if (m) {
+        if (hintStage === 0) {
+          shapes.push({ orig: m.from, brush: 'paleBlue' });
+        } else {
+          shapes.push({ orig: m.from, dest: m.to, brush: 'green' });
+        }
+      }
+    }
+    setHintShapes(shapes);
+    setHintStage((s) => (s >= 2 ? 0 : s + 1));
+    // Record that a hint was used for the current position (downgrade)
+    updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 2); // Hard
+  }, [expectedMoves, trainStatus, chess, hintStage]);
+
+  const clearHints = useCallback(() => {
+    setHintShapes([]);
+    setHintStage(0);
+  }, []);
+
+  // ─── SESSION / DAILY CAPS ───
+  const handleSessionProgress = useCallback(() => {
+    setSessionCount((c) => {
+      const n = c + 1;
+      if (settings.sessionCap > 0 && n >= settings.sessionCap) {
+        setAllCaughtUp(true);
+      }
+      return n;
+    });
+  }, [settings.sessionCap]);
+
+  const handleRetrainFromScratch = useCallback(() => {
+    resetAllCards();
+    setRetraining(true);
+    setAllCaughtUp(false);
+    setSessionCount(0);
+    setTimeout(() => setRetraining(false), 400);
+  }, []);
+
+  const handleTrainFurther = useCallback(() => {
+    setAllCaughtUp(false);
+    setSessionCount(0);
+  }, []);
+
+  // ─── COPY LINE ───
+  const handleCopyLine = useCallback(() => {
+    const pgn = formatMoveNotation(currentPath, currentPath.length - 1);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(pgn).catch(() => {});
+    }
+    setCopyMsg(true);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopyMsg(false), 1600);
+  }, [currentPath]);
+
+  // ─── PGN EXPORT ───
+  const handleExportPGN = useCallback(() => {
+    if (!tree) return;
+    const pgn = treeToPGN(tree, repertoire.name);
+    const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(repertoire.name || 'repertoire').replace(/[^\w]+/g, '-').toLowerCase()}.pgn`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [tree, repertoire.name]);
+
+  // Auto-advance to next line after a line completes
+  useEffect(() => {
+    if (autoAdvance && mode === 'train' && trainStatus === 'complete' && !allCaughtUp) {
+      const pace = Math.max(settings.drillPace || 400, 400);
+      const t = setTimeout(handleNextLine, pace);
+      return () => clearTimeout(t);
+    }
+  }, [autoAdvance, mode, trainStatus, allCaughtUp, settings.drillPace, handleNextLine]);
 
   // ─── EDIT MODE ───
   const handleSaveEdit = useCallback(() => {
@@ -351,10 +482,12 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         if (e.key === 'End') studyEnd();
       }
       if (e.key === 'f') setOrientation(o => o === 'white' ? 'black' : 'white');
+      if ((e.key === 'h' || e.key === 'H') && mode === 'train' && trainStatus === 'user_turn') handleShowHint();
+      if (e.key === 'Escape') clearHints();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [mode, studyForward, studyBack, studyReset, studyEnd]);
+  }, [mode, studyForward, studyBack, studyReset, studyEnd, handleShowHint, clearHints, trainStatus]);
 
   if (!repertoire) return null;
 
@@ -392,8 +525,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     },
     draggable: { enabled: isUserTurn, showGhost: true },
     selectable: { enabled: isUserTurn },
-    drawable: { enabled: false, visible: true, autoShapes: studyArrows },
-  }), [position, orientation, turnColor, lastMove, dests, isUserTurn, handleTrainUserMove, studyArrows]);
+    drawable: { enabled: false, visible: true, autoShapes: [...(studyArrows || []), ...hintShapes] },
+  }), [position, orientation, turnColor, lastMove, dests, isUserTurn, handleTrainUserMove, studyArrows, hintShapes]);
 
   // Study info
   const currentStudyStep = studyPath[studyStep];
@@ -417,6 +550,24 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     transition: 'all 0.2s',
   });
 
+  // ─── SPARRING MODE ───
+  if (sparMode) {
+    return (
+      <div className="relative min-h-screen overflow-hidden" style={{ background: '#080b14', fontFamily: "'Inter', sans-serif" }}>
+        <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 25% 45%, #0e1828 0%, transparent 58%), radial-gradient(ellipse at 75% 20%, #110e20 0%, transparent 52%), radial-gradient(ellipse at 55% 85%, #0c1520 0%, transparent 50%), #080b14' }} />
+        </div>
+        <div className="relative p-2 md:p-0" style={{ zIndex: 1 }}>
+          <SparringMode
+            repertoire={repertoire}
+            boardTheme={boardBg}
+            onExit={() => setSparMode(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: '#080b14', fontFamily: "'Inter', sans-serif" }}>
       {/* Nebula bg */}
@@ -439,6 +590,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             <div className="flex gap-1">
               <button onClick={() => { setMode('study'); studyReset(); }} style={modeBtn('study')}>📖 STUDY</button>
               <button onClick={() => { setMode('train'); chess.reset(); setPosition(chess.fen()); setCurrentPath([]); setLastMove(null); if (tree && allLines.length > 0) startTrainLine(allLines, 0, tree); }} style={modeBtn('train')}>🎯 TRAIN</button>
+              <button onClick={() => setSparMode(true)} style={modeBtn('spar')}>⚔ SPAR</button>
               <button onClick={() => setMode('edit')} style={modeBtn('edit')}>✏️ EDIT</button>
             </div>
             {mode === 'train' && (
@@ -490,6 +642,20 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                   </div>
                 )}
               </div>
+              {/* Move quality glyph on landing square */}
+              {moveGlyph && !wrongSquare && (
+                <div className="absolute" style={{
+                  top: '8px', right: '8px', zIndex: 20,
+                  width: '32px', height: '32px',
+                  background: moveGlyph.tone === 'good' ? 'rgba(74, 222, 128, 0.9)' : moveGlyph.tone === 'bad' ? 'rgba(255, 107, 107, 0.9)' : 'rgba(168, 131, 74, 0.9)',
+                  borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: "'Orbitron', sans-serif",
+                  fontSize: '0.9rem', fontWeight: 900, color: '#080b14',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                  animation: 'fadeInScale 0.2s ease-out',
+                }}>{moveGlyph.glyph}</div>
+              )}
               {/* Wrong move red X badge on the piece */}
               {wrongSquare && (
                 <div className="absolute" style={{
@@ -605,7 +771,21 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
               )}
 
               {/* ─── TRAIN MODE PANEL ─── */}
-              {mode === 'train' && (
+              {mode === 'train' && allCaughtUp && (
+                <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(168,131,74,0.1)', border: '1px solid rgba(168,131,74,0.3)' }}>
+                  <div style={{ fontSize: '2rem' }}>🎉</div>
+                  <h3 className="font-orbitron font-semibold text-sm my-2" style={{ color: '#ddd8cc', letterSpacing: '0.1em' }}>ALL CAUGHT UP!</h3>
+                  <p className="text-xs mb-3" style={{ color: 'rgba(160,152,138,0.7)' }}>
+                    You've reached your session goal of {sessionCap} moves this session.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <button onClick={handleTrainFurther} className="px-4 py-2 text-xs rounded-lg font-orbitron font-semibold transition-all hover:scale-105" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>TRAIN FURTHER</button>
+                    <button onClick={handleRetrainFromScratch} className="px-4 py-2 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.25)', color: '#ff8a8a', cursor: 'pointer' }}>↺ RETRAIN FROM SCRATCH</button>
+                  </div>
+                </div>
+              )}
+
+              {mode === 'train' && !allCaughtUp && (
                 <>
                   {/* Status */}
                   <div className="rounded-xl p-3.5" style={{
@@ -650,10 +830,30 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
                   {/* Controls */}
                   <div className="flex flex-wrap gap-2">
+                    {isUserTurn && settings.showHints && (
+                      <button onClick={handleShowHint} className="px-3 py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(168,131,74,0.12)', border: '1px solid rgba(168,131,74,0.25)', color: '#a8834a', cursor: 'pointer' }}>
+                        💡 Hint {hintStage === 0 ? '' : hintStage === 1 ? '(source)' : '(full)'}
+                      </button>
+                    )}
                     <button onClick={handleRestartLine} className="px-3 py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart</button>
+                    <button onClick={handleCopyLine} className="px-3 py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }} title="Copy current line">
+                      {copyMsg ? '✓ Copied' : '📋 Copy'}
+                    </button>
                     {trainStatus === 'complete' && (
                       <button onClick={handleNextLine} className="px-4 py-2 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>NEXT →</button>
                     )}
+                  </div>
+
+                  {/* Session / daily progress */}
+                  <div className="flex items-center gap-3 text-[11px]">
+                    <span style={{ color: 'rgba(160,152,138,0.5)' }}>
+                      Session <b style={{ color: '#8daac4' }}>{Math.min(sessionCount, sessionCap || sessionCount)}</b>
+                      {sessionCap > 0 && <span style={{ color: 'rgba(160,152,138,0.4)' }}>/{sessionCap}</span>}
+                    </span>
+                    <span style={{ color: 'rgba(160,152,138,0.5)' }}>
+                      Today <b style={{ color: '#a8834a' }}>{dailyCount}</b>
+                      {settings.dailyNewCap > 0 && <span style={{ color: 'rgba(160,152,138,0.4)' }}>/{settings.dailyNewCap}</span>}
+                    </span>
                   </div>
 
                   {/* Training info */}
@@ -685,6 +885,9 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                     <div className="flex gap-2">
                       <button onClick={handleSaveEdit} className="flex-1 px-4 py-2 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>
                         {editSaved ? '✓ Saved' : 'Save'}
+                      </button>
+                      <button onClick={handleExportPGN} className="flex-1 px-4 py-2 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.1)', border: '1px solid rgba(107,140,174,0.2)', color: '#8daac4', cursor: 'pointer' }} title="Export this repertoire as a PGN file">
+                        ⬇ Export PGN
                       </button>
                     </div>
                   </div>
