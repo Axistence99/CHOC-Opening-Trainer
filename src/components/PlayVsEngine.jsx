@@ -26,7 +26,7 @@ function computeDests(fen) {
   }
 }
 
-export default function PlayVsEngine({ playerColor, boardTheme, onExit, embedded = false }) {
+export default function PlayVsEngine({ playerColor, boardTheme, onExit, embedded = false, onColorChange }) {
   const [chess] = useState(() => new Chess());
   const [fen, setFen] = useState(chess.fen());
   const [lastMove, setLastMove] = useState(null);
@@ -214,6 +214,32 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit, embedded
             )}
           </div>
         </div>
+
+        {/* Play as White / Black */}
+        {onColorChange && (
+          <div className="flex items-center gap-2 w-full max-w-sm">
+            <button
+              onClick={() => onColorChange('w')}
+              className={`flex-1 px-3 py-2 rounded-lg transition-all hover:scale-105 text-[11px] font-orbitron ${playerColor === 'w' ? 'text-white' : ''}`}
+              style={{
+                background: playerColor === 'w' ? 'linear-gradient(135deg, rgba(248,250,252,0.22), rgba(203,213,225,0.08))' : 'rgba(107,140,174,0.08)',
+                border: playerColor === 'w' ? '1px solid rgba(248,250,252,0.35)' : '1px solid rgba(107,140,174,0.18)',
+                color: playerColor === 'w' ? '#fff' : '#8daac4',
+                letterSpacing: '0.08em', cursor: 'pointer',
+              }}
+            >♔ PLAY AS WHITE</button>
+            <button
+              onClick={() => onColorChange('b')}
+              className={`flex-1 px-3 py-2 rounded-lg transition-all hover:scale-105 text-[11px] font-orbitron ${playerColor === 'b' ? 'text-white' : ''}`}
+              style={{
+                background: playerColor === 'b' ? 'linear-gradient(135deg, rgba(107,140,174,0.35), rgba(15,23,42,0.9))' : 'rgba(107,140,174,0.08)',
+                border: playerColor === 'b' ? '1px solid rgba(107,140,174,0.5)' : '1px solid rgba(107,140,174,0.18)',
+                color: playerColor === 'b' ? '#fff' : '#8daac4',
+                letterSpacing: '0.08em', cursor: 'pointer',
+              }}
+            >♚ PLAY AS BLACK</button>
+          </div>
+        )}
 
         {/* Controls */}
         <div className="flex items-center justify-between gap-2 w-full max-w-sm">

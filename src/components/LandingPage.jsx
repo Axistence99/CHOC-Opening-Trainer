@@ -137,7 +137,10 @@ function getSavedPieceSet() {
 }
 
 export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRepertoire }) {
+  // playerColor is ONLY for browsing openings in the sidebar (which openings to show).
   const [playerColor, setPlayerColor] = useState(null);
+  // engineColor controls who the user plays as vs Stockfish — independent of playerColor.
+  const [engineColor, setEngineColor] = useState('w');
   const [selectedOpening, setSelectedOpening] = useState(OPENINGS[0]);
   const [moveIndex, setMoveIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -416,10 +419,11 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
           {/* Center — Play vs Stockfish board */}
           <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-8">
             <PlayVsEngine
-              key={playerColor || 'w'}
-              playerColor={playerColor || 'w'}
+              key={engineColor}
+              playerColor={engineColor}
               boardTheme={boardBg}
               embedded
+              onColorChange={setEngineColor}
             />
           </main>
 
