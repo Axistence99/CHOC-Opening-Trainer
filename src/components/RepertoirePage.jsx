@@ -54,6 +54,29 @@ function buildStudyPath(tree) {
   return path;
 }
 
+// Build a linear path of positions for a specific line (for multi-line / multi-chapter study)
+function buildStudyPathForLine(tree, line) {
+  const path = [{ fen: tree.fen, move: null, san: null, from: null, to: null, comment: null, depth: 0 }];
+  if (!line || !Array.isArray(line)) return path;
+  let curr = tree;
+  for (const item of line) {
+    const san = typeof item === 'string' ? item : (item.san || item);
+    if (!curr || !curr.children || !curr.children.has(san)) break;
+    const child = curr.children.get(san);
+    path.push({
+      fen: child.fen,
+      move: child.move,
+      san,
+      from: child.move?.from,
+      to: child.move?.to,
+      comment: child.comment || null,
+      depth: child.depth,
+    });
+    curr = child;
+  }
+  return path;
+}
+
 // Build all lines (for training)
 function buildAllLines(tree) {
   return getLeafPaths(tree);
@@ -85,6 +108,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
   // Study state
   const [studyStep, setStudyStep] = useState(0);
+  const [studyLineIdx, setStudyLineIdx] = useState(0);
   const [studyPath, setStudyPath] = useState([]);
 
   // Train state
@@ -153,17 +177,18 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setEditName(repertoire.name);
     setEditDescription(repertoire.description || '');
 
-    // Study path
-    const sp = buildStudyPath(parsedTree);
-    setStudyPath(sp);
-    setStudyStep(0);
-
     // Training lines
     const lines = buildAllLines(parsedTree);
     const shuffled = [...lines].sort(() => Math.random() - 0.5);
     setAllLines(shuffled);
     setLineIndex(0);
     setStats({ correct: 0, wrong: 0, total: 0 });
+
+    // Study path (default to line 0 if lines exist)
+    const sp = lines.length > 0 ? buildStudyPathForLine(parsedTree, lines[0]) : buildStudyPath(parsedTree);
+    setStudyPath(sp);
+    setStudyStep(0);
+    setStudyLineIdx(0);
 
     chess.reset();
     setPosition(chess.fen());
@@ -173,6 +198,18 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   }, [repertoire]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── STUDY MODE ───
+  const handleSelectStudyLine = useCallback((idx) => {
+    if (!allLines || idx < 0 || idx >= allLines.length) return;
+    setStudyLineIdx(idx);
+    const sp = buildStudyPathForLine(tree, allLines[idx]);
+    setStudyPath(sp);
+    setStudyStep(0);
+    if (sp.length > 0) {
+      setPosition(sp[0].fen);
+      setLastMove(null);
+      setCurrentPath([]);
+    }
+  }, [allLines, tree]);
   const studyForward = useCallback(() => {
     if (studyStep >= studyPath.length - 1) return;
     const next = studyStep + 1;
@@ -698,6 +735,26 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             {/* Board controls for Study mode */}
             {mode === 'study' && (
               <div className="flex flex-col items-center gap-2 w-full max-w-sm md:max-w-md">
+                {allLines.length > 1 && (
+                  <div className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)' }}>
+                    <span className="text-[10px] font-orbitron font-semibold" style={{ color: '#8daac4', letterSpacing: '0.05em' }}>CHAPTER:</span>
+                    <select
+                      value={studyLineIdx}
+                      onChange={(e) => handleSelectStudyLine(Number(e.target.value))}
+                      className="bg-transparent text-xs text-slate-200 outline-none cursor-pointer flex-1 text-right font-medium"
+                      style={{ background: '#0a0d18' }}
+                    >
+                      {allLines.map((line, idx) => {
+                        const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
+                        return (
+                          <option key={idx} value={idx} style={{ background: '#0a0d18', color: '#cbd5e1' }}>
+                            Line {idx + 1} of {allLines.length} ({preview}...)
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
                 {/* Move annotation */}
                 <div className="w-full rounded-lg px-3 py-2 text-center" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.14)' }}>
                   <div style={{ color: '#a8834a', fontFamily: "'Orbitron', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em' }}>
@@ -737,6 +794,25 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
               {/* ─── STUDY MODE PANEL ─── */}
               {mode === 'study' && (
                 <>
+                  {allLines.length > 1 && (
+                    <div className="rounded-xl p-3 space-y-1" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
+                      <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>CHAPTER / LINE ({studyLineIdx + 1}/{allLines.length})</h3>
+                      <select
+                        value={studyLineIdx}
+                        onChange={(e) => handleSelectStudyLine(Number(e.target.value))}
+                        className="w-full bg-slate-900 text-xs text-slate-200 rounded px-2.5 py-1.5 border border-slate-700 outline-none cursor-pointer"
+                      >
+                        {allLines.map((line, idx) => {
+                          const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
+                          return (
+                            <option key={idx} value={idx}>
+                              Line {idx + 1}: {preview}...
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
                   {/* Move notation list (lichess-style) */}
                   <div className="rounded-xl p-3" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
                     <h3 className="font-orbitron font-semibold text-[10px] mb-2" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>MOVES</h3>

@@ -14,7 +14,7 @@ const OPENINGS = [
   { id: 'kings-indian', name: "King's Indian Defense", eco: 'E60', tags: ['Dynamic', 'Black', 'Closed'], description: 'Black allows White full center control then counterattacks fiercely. Favored by Fischer and Kasparov.', moves: ['d4', 'Nf6', 'c4', 'g6', 'Nc3'] },
   { id: 'french', name: 'French Defense', eco: 'C00', tags: ['Solid', 'Black', 'Semi-Open'], description: 'A solid, counter-punching defense. Black builds a pawn chain and fights for the center from behind.', moves: ['e4', 'e6', 'd4', 'd5', 'Nc3'] },
   { id: 'london', name: 'London System', eco: 'D02', tags: ['Solid', 'White', 'Closed'], description: 'A reliable and solid setup for White. Easy to learn with consistent plans across variations.', moves: ['d4', 'd5', 'Bf4', 'Nf6', 'e3'] },
-  { id: 'catalan-white', name: 'Catalan for White', eco: 'E05', tags: ['Positional', 'White', 'Closed'], description: 'A complex, theory-based opening where White fianchettos and pressures the long diagonal. Leads to small but lingering advantages and better pawn structures.', moves: ['d4', 'd5', 'c4', 'e6', 'Nf3', 'Nf6', 'g3'] },
+  { id: 'catalan-white', name: 'Catalan for White', eco: 'E05', tags: ['Positional', 'White', 'Closed'], description: 'A complete Catalan repertoire for White (46 chapters & 845 positions). Covers Open Catalan (Qc2, Ne5, a6 lines), Closed Catalan (e4 plans), and responses to KID, Slav, QID, Tarrasch, Dutch, Benoni, and Grünfeld.', moves: ['d4', 'd5', 'c4', 'e6', 'Nf3', 'Nf6', 'g3'] },
 ];
 
 // Extract main line SAN moves from custom repertoire
