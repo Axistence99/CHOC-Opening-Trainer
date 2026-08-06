@@ -53,8 +53,8 @@ body {
 }
 
 @keyframes board-appear {
-  0% { opacity: 0; transform: scale(0.95); }
-  100% { opacity: 1; transform: scale(1); }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @keyframes slide-in-right {
@@ -67,3 +67,55 @@ body {
 .nebula-blob-3 { animation: 42s ease-in-out infinite wave-drift-3; }
 .board-appear { animation: 0.6s ease-out both board-appear; }
 .slide-in-right { animation: 0.5s ease-out both slide-in-right; }
+
+/* ─── Chessground fixes ─── */
+
+/* GPU compositing for smooth piece animation — backface-visibility is safe
+   because it doesn't conflict with chessground's inline transform styles.
+   Do NOT set transform: translateZ(0) here — chessground sets transform
+   via inline styles (translate for positioning) and our CSS transform
+   would get overridden erratically, breaking piece positions. */
+.cg-wrap piece {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Pieces MUST use background-size: cover (chessground default) to fill
+   their 12.5%×12.5% square exactly. Using "contain" would shrink the
+   image and leave gaps, making pieces appear offset/broken. */
+
+/* Ensure the cg-wrap container is a perfect square with no extra spacing.
+   box-sizing: content-box is set by chessground.base.css and MUST NOT
+   be overridden by Tailwind's border-box reset — otherwise padding/border
+   would be included in width/height, breaking the exact square sizing. */
+.cg-wrap {
+  box-sizing: content-box !important;
+  overflow: hidden;
+}
+
+/* Fix coordinate labels on small boards */
+@media (max-width: 480px) {
+  .cg-wrap coords {
+    font-size: 7px !important;
+    opacity: 0.6 !important;
+  }
+  .cg-wrap coords.ranks {
+    left: 2px !important;
+  }
+  .cg-wrap coords.files {
+    left: 12px !important;
+    bottom: -2px !important;
+  }
+}
+
+/* Touch action — allow chessground drag on touch devices without page scroll */
+.cg-wrap cg-board {
+  touch-action: none;
+}
+
+/* Prevent text selection and tap highlight on board interactions */
+.cg-wrap {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
@@ -23,22 +23,23 @@ function makeBoardURI(light, dark) {
 /**
  * React wrapper for chessground — Lichess's interactive board.
  *
- * SIZING: Measures parent width, rounds to multiple of 8 for crisp squares,
- * then sets BOTH width AND height as explicit px on the .cg-wrap div.
- * This guarantees chessground sees a perfect square where width/8 and
- * height/8 are integers, so pieces land exactly centered on squares.
- *
- * MOBILE: On small viewports, we use a tighter minimum and allow the board
- * to shrink more aggressively. The ResizeObserver re-measures on any
- * parent width change (rotation, sidebar toggle, etc.).
+ * CRITICAL FOR PIECE POSITIONING:
+ * - Both width AND height are set to the same boardPx (multiple of 8)
+ * - chessground pieces use 12.5% width/height + transform:translate() for positioning
+ * - With boardPx divisible by 8, 12.5% = exact integer pixels → no sub-pixel drift
+ * - We NEVER set CSS transform on pieces (chessground manages that via inline styles)
+ * - We NEVER use background-size: contain (cover is required to fill the square)
+ * - We NEVER apply transform/scale to any ancestor of .cg-wrap (breaks getBoundingClientRect)
  */
 export default function ChessgroundBoard({ config, boardTheme }) {
   const containerRef = useRef(null);
   const cgRef = useRef(null);
   const [boardPx, setBoardPx] = useState(0);
+  const configRef = useRef(config);
+  configRef.current = config;
 
   // Measure parent width and lock to multiple-of-8 px
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
@@ -51,7 +52,6 @@ export default function ChessgroundBoard({ config, boardTheme }) {
       const padR = parseFloat(style.paddingRight) || 0;
       const contentW = rect.width - padL - padR;
       if (contentW > 0) {
-        // Minimum 256px on mobile (8*32), ensures at least 32px per square
         const minPx = 256;
         const px = Math.max(minPx, Math.floor(contentW / 8) * 8);
         if (px >= minPx) setBoardPx(px);
@@ -74,8 +74,30 @@ export default function ChessgroundBoard({ config, boardTheme }) {
       cgRef.current.destroy();
       cgRef.current = null;
     }
-    cgRef.current = Chessground(containerRef.current, config);
+    const cg = Chessground(containerRef.current, configRef.current);
+    cgRef.current = cg;
+
+    // Force bounds recalculation after the browser has completed layout.
+    // This is critical because chessground reads getBoundingClientRect() on init,
+    // which may return stale or incorrect dimensions if called too early.
+    // The requestAnimationFrame ensures the browser has painted at least once
+    // with the correct dimensions before we ask chessground to re-render.
+    const raf1 = requestAnimationFrame(() => {
+      if (cgRef.current) {
+        cgRef.current.set(configRef.current);
+      }
+      // Second frame for extra safety (ensures paint has definitely happened)
+      const raf2 = requestAnimationFrame(() => {
+        if (cgRef.current) {
+          cgRef.current.set(configRef.current);
+        }
+      });
+      // Store raf2 for cleanup (we can't store it in a ref easily, so use a closure)
+      return () => cancelAnimationFrame(raf2);
+    });
+
     return () => {
+      cancelAnimationFrame(raf1);
       if (cgRef.current) {
         cgRef.current.destroy();
         cgRef.current = null;
@@ -85,26 +107,26 @@ export default function ChessgroundBoard({ config, boardTheme }) {
 
   // Update config on change
   useEffect(() => {
-    if (cgRef.current && config) {
+    if (cgRef.current && config && boardPx > 0) {
       cgRef.current.set(config);
     }
-  }, [config]);
+  }, [config, boardPx]);
 
-  // Apply custom board colors
-  useEffect(() => {
+  // Apply custom board colors — use useLayoutEffect to avoid flicker.
+  // Must FULLY override chessground.brown.css which sets background-color
+  // and background-image on cg-board. We set all background properties
+  // to ensure no leftover from the brown CSS bleeds through.
+  useLayoutEffect(() => {
     if (!containerRef.current || !boardTheme) return;
-    const apply = () => {
-      const boardEl = containerRef.current?.querySelector('cg-board');
-      if (boardEl) {
-        boardEl.style.backgroundColor = boardTheme.dark;
-        boardEl.style.backgroundImage = makeBoardURI(boardTheme.light, boardTheme.dark);
-        boardEl.style.backgroundSize = 'cover';
-      }
-    };
-    apply();
-    const t = setTimeout(apply, 50);
-    return () => clearTimeout(t);
-  }, [boardTheme, config?.fen]);
+    const boardEl = containerRef.current.querySelector('cg-board');
+    if (boardEl) {
+      boardEl.style.backgroundColor = boardTheme.dark;
+      boardEl.style.backgroundImage = makeBoardURI(boardTheme.light, boardTheme.dark);
+      boardEl.style.backgroundSize = 'cover';
+      boardEl.style.backgroundPosition = '0 0';
+      boardEl.style.backgroundRepeat = 'no-repeat';
+    }
+  }, [boardTheme, config?.fen, boardPx]);
 
   return (
     <div
@@ -114,7 +136,7 @@ export default function ChessgroundBoard({ config, boardTheme }) {
         // Both width and height as explicit px — perfect square, integer width/8
         width: boardPx > 0 ? `${boardPx}px` : '100%',
         height: boardPx > 0 ? `${boardPx}px` : undefined,
-        // Phase 1: let aspect-ratio derive height from width
+        // Phase 1 (before measurement): let aspect-ratio derive height
         aspectRatio: boardPx > 0 ? undefined : '1 / 1',
         // Prevent mobile browsers from adding odd spacing
         lineHeight: 0,

@@ -310,10 +310,10 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
 
   // Mode toggle style helper
   const modeBtn = (m, label) => ({
-    padding: '6px 14px',
-    fontSize: '0.65rem',
+    padding: '4px 10px',
+    fontSize: '0.6rem',
     fontFamily: "'Orbitron', sans-serif",
-    letterSpacing: '0.08em',
+    letterSpacing: '0.06em',
     fontWeight: mode === m ? 700 : 400,
     color: mode === m ? '#ddd8cc' : 'rgba(160,152,138,0.5)',
     background: mode === m ? 'rgba(107,140,174,0.2)' : 'rgba(107,140,174,0.04)',
@@ -324,11 +324,11 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
   });
 
   return (
-    <div ref={containerRef} className="space-y-4">
+    <div ref={containerRef} className="space-y-3 md:space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <button onClick={onExit} className="px-3 py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)' }}>← Back</button>
+      <div className="flex items-center justify-between flex-wrap gap-1.5 md:gap-2">
+        <div className="flex items-center gap-2">
+          <button onClick={onExit} className="px-2 md:px-3 py-1 md:py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)' }}>← Back</button>
           <div>
             <h2 className="font-orbitron font-bold text-sm" style={{ color: '#ddd8cc', letterSpacing: '0.08em' }}>{repertoire.name}</h2>
             <p className="text-xs" style={{ color: 'rgba(150,142,130,0.5)' }}>{openingName}</p>
@@ -351,17 +351,17 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
       </div>
 
       {/* Board + Controls */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
-        <div className="flex-shrink-0 space-y-2">
+      <div className="flex flex-col lg:flex-row gap-3 md:gap-4 items-start">
+        <div className="flex-shrink-0 space-y-2 w-full lg:w-auto">
           <div className="board-appear">
-            <div className="rounded-lg overflow-hidden" style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.5)', width: 'clamp(280px, 50vw, 520px)' }}>
+            <div className="rounded-lg overflow-hidden" style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.5)', width: 'min(calc(100vw - 40px), 520px)' }}>
               <ChessgroundBoard
                 config={cgConfig}
                 boardTheme={{ light: theme.lightSquare, dark: theme.darkSquare }}
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             <BoardThemePicker currentTheme={boardTheme} onThemeChange={onBoardThemeChange} compact />
             <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} className="px-2 py-1 text-[10px] rounded transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)' }}>⟳ Flip</button>
             <span className="text-[10px]" style={{ color: 'rgba(160,152,138,0.3)' }}>Line {lineIndex + 1}/{allLines.length}</span>
@@ -369,7 +369,7 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
         </div>
 
         {/* Side Panel */}
-        <div className="flex-1 min-w-0 space-y-3 lg:max-w-xs w-full slide-in-right">
+        <div className="flex-1 min-w-0 space-y-2 md:space-y-3 lg:max-w-xs w-full slide-in-right">
 
           {/* ─── STUDY MODE PANEL ─── */}
           {mode === 'study' && (
@@ -408,11 +408,11 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
               </div>
 
               {/* Navigation controls */}
-              <div className="flex items-center justify-center gap-2">
-                <button onClick={studyReset} className="px-3 py-2 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)', color: '#7a746a', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>↺</button>
-                <button onClick={studyBack} disabled={studyStep === 0} className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-105 disabled:opacity-30" style={{ background: 'rgba(107,140,174,0.12)', border: '1px solid rgba(107,140,174,0.28)', color: '#8daac4', fontSize: '1.1rem', cursor: studyStep === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
-                <button onClick={studyForward} disabled={studyStep >= studyPositions.length - 1} className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-105 disabled:opacity-30" style={{ background: studyStep >= studyPositions.length - 1 ? 'rgba(107,140,174,0.08)' : 'rgba(107,140,174,0.18)', border: '1px solid rgba(107,140,174,0.35)', color: '#a8c0d6', fontSize: '1.1rem', cursor: studyStep >= studyPositions.length - 1 ? 'not-allowed' : 'pointer' }}>›</button>
-                <button onClick={studyEnd} className="px-3 py-2 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(168,131,74,0.12)', border: '1px solid rgba(168,131,74,0.25)', color: '#a8834a', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>END →</button>
+              <div className="flex items-center justify-center gap-1.5 md:gap-2">
+                <button onClick={studyReset} className="px-2 md:px-3 py-1.5 md:py-2 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)', color: '#7a746a', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>↺</button>
+                <button onClick={studyBack} disabled={studyStep === 0} className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center transition-all hover:scale-105 disabled:opacity-30" style={{ background: 'rgba(107,140,174,0.12)', border: '1px solid rgba(107,140,174,0.28)', color: '#8daac4', fontSize: '1rem', cursor: studyStep === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
+                <button onClick={studyForward} disabled={studyStep >= studyPositions.length - 1} className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center transition-all hover:scale-105 disabled:opacity-30" style={{ background: studyStep >= studyPositions.length - 1 ? 'rgba(107,140,174,0.08)' : 'rgba(107,140,174,0.18)', border: '1px solid rgba(107,140,174,0.35)', color: '#a8c0d6', fontSize: '1rem', cursor: studyStep >= studyPositions.length - 1 ? 'not-allowed' : 'pointer' }}>›</button>
+                <button onClick={studyEnd} className="px-2 md:px-3 py-1.5 md:py-2 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(168,131,74,0.12)', border: '1px solid rgba(168,131,74,0.25)', color: '#a8834a', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>END →</button>
               </div>
 
               {/* Moves list */}

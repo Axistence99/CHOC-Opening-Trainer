@@ -3,9 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♞</text></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="description" content="CHOC — Free chess opening repertoire trainer with pre-built lines and PGN import. Practice with spaced repetition." />
     <title>CHOC Opening Trainer</title>
+    <!-- Inject piece set CSS override BEFORE React mounts to prevent flash of default pieces.
+         Reads the persisted piece set from localStorage. If it's cburnett (default), no override needed.
+         For other sets, we create a <style> with !important rules that win over the bundled cburnett CSS. -->
+    <script>
+      try {
+        var ps = localStorage.getItem('choc-piece-set');
+        if (ps && ps !== 'cburnett') {
+          var base = 'https://lichess1.org/assets/piece/' + ps + '/';
+          var roles = ['king','queen','rook','bishop','knight','pawn'];
+          var colors = ['white','black'];
+          var css = '';
+          for (var ci = 0; ci < colors.length; ci++) {
+            for (var ri = 0; ri < roles.length; ri++) {
+              var cl = colors[ci][0];
+              var rl = roles[ri][0].toUpperCase();
+              css += '.cg-wrap piece.' + roles[ri] + '.' + colors[ci] +
+                ' { background-image: url(' + JSON.stringify(base + cl + rl + '.svg') +
+                ') !important; background-size: cover !important; }\n';
+            }
+          }
+          var s = document.createElement('style');
+          s.id = 'chessground-piece-override';
+          s.textContent = css;
+          document.head.appendChild(s);
+        }
+      } catch(e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

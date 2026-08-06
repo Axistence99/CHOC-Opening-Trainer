@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { Chess } from 'chess.js';
 import { getRepertoires, addRepertoire } from '../utils/storage';
 import { parsePGNToTree, countPositions } from '../utils/pgnParser';
@@ -87,8 +87,10 @@ const PIECE_SETS = {
 };
 
 // Generate CSS for piece set URLs from Lichess CDN
+// Uses !important to override the bundled cburnett CSS (Vite bundles it as <style>,
+// not <link>, so we can't disable it — we must win with !important specificity).
 function generatePieceSetCSS(setKey) {
-  if (setKey === 'cburnett') return null; // handled by chessground.cburnett.css
+  if (setKey === 'cburnett') return ''; // clear overrides → bundled cburnett CSS takes effect
   const baseUrl = `https://lichess1.org/assets/piece/${setKey}/`;
   const roles = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
   const colors = ['white', 'black'];
@@ -97,10 +99,42 @@ function generatePieceSetCSS(setKey) {
     for (const role of roles) {
       const letter = role[0].toUpperCase();
       const colorLetter = color[0];
-      css += `.cg-wrap piece.${role}.${color} { background-image: url('${baseUrl}${colorLetter}${letter}.svg'); }\n`;
+      css += `.cg-wrap piece.${role}.${color} { background-image: url('${baseUrl}${colorLetter}${letter}.svg') !important; background-size: cover !important; }\n`;
     }
   }
   return css;
+}
+
+// Preload all SVGs for a piece set so they're cached before we switch CSS.
+// Returns a Promise that resolves when all 12 SVGs are loaded (or timed out).
+function preloadPieceSetSVGs(setKey) {
+  if (setKey === 'cburnett') return Promise.resolve(); // bundled, no preload needed
+  const baseUrl = `https://lichess1.org/assets/piece/${setKey}/`;
+  const roles = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
+  const colors = ['w', 'b'];
+  const loads = [];
+  for (const color of colors) {
+    for (const role of roles) {
+      const letter = role[0].toUpperCase();
+      const url = `${baseUrl}${color}${letter}.svg`;
+      loads.push(new Promise((resolve) => {
+        const img = new Image();
+        img.onload = resolve;
+        img.onerror = resolve; // resolve anyway so we don't block forever
+        img.src = url;
+      }));
+    }
+  }
+  return Promise.all(loads);
+}
+
+// Read persisted piece set from localStorage
+function getSavedPieceSet() {
+  try {
+    const saved = localStorage.getItem('choc-piece-set');
+    if (saved && PIECE_SETS[saved]) return saved;
+  } catch {}
+  return 'cburnett';
 }
 
 export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRepertoire }) {
@@ -110,7 +144,17 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [currentBoardTheme, setCurrentBoardTheme] = useState(boardTheme || 'space');
-  const [pieceSet, setPieceSet] = useState('cburnett');
+  const [pieceSet, setPieceSetRaw] = useState(getSavedPieceSet);
+  const [pieceSetReady, setPieceSetReady] = useState(true); // false while preloading
+  const setPieceSet = useCallback((key) => {
+    if (key === pieceSet) return;
+    setPieceSetReady(false);
+    preloadPieceSetSVGs(key).then(() => {
+      setPieceSetRaw(key);
+      setPieceSetReady(true);
+      try { localStorage.setItem('choc-piece-set', key); } catch {}
+    });
+  }, [pieceSet]);
   const [orientation, setOrientation] = useState('white');
   const [playVsEngine, setPlayVsEngine] = useState(null); // null or 'w'/'b'
 
@@ -228,8 +272,11 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     },
   }), [currentFen, orientation, currentTurnColor, currentLastMove, dests, handleUserMove]);
 
-  // Inject piece set CSS dynamically
-  useEffect(() => {
+  // Inject piece set CSS synchronously BEFORE paint to avoid flash of wrong pieces.
+  // useLayoutEffect fires synchronously after DOM mutation but before the browser paints.
+  // When switching to cburnett: clear overrides so bundled CSS takes effect.
+  // When switching to other sets: inject !important overrides (wins over bundled cburnett).
+  useLayoutEffect(() => {
     let styleEl = pieceStyleRef.current;
     if (!styleEl) {
       styleEl = document.createElement('style');
@@ -238,13 +285,15 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       pieceStyleRef.current = styleEl;
     }
     const css = generatePieceSetCSS(pieceSet);
-    styleEl.textContent = css || '';
-    // Toggle cburnett CSS
-    const cburnettLink = document.getElementById('chessground-cburnett-css');
-    if (cburnettLink) {
-      cburnettLink.disabled = pieceSet !== 'cburnett';
-    }
+    styleEl.textContent = css;
   }, [pieceSet]);
+
+  // Preload the current piece set SVGs on mount (in case they're not cached)
+  useEffect(() => {
+    if (pieceSet !== 'cburnett') {
+      preloadPieceSetSVGs(pieceSet);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentAnnotation = moveIndex > 0 ? annotations[moveIndex - 1] : 'Starting position';
   const progressPct = (moveIndex / selectedOpening.moves.length) * 100;
@@ -280,7 +329,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
 
   const theme = BOARD_THEMES_MAP[currentBoardTheme] || BOARD_THEMES_MAP.space;
   const activeOpening = selectedOpening;
-  const boardSize = 'clamp(320px, 55vw, 560px)';
+  const boardSize = 'min(calc(100vw - 40px), 560px)';
 
   // If playing vs engine, render that instead
   if (playVsEngine) {
@@ -289,7 +338,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
           <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 25% 45%, #0e1828 0%, transparent 58%), radial-gradient(ellipse at 75% 20%, #110e20 0%, transparent 52%), radial-gradient(ellipse at 55% 85%, #0c1520 0%, transparent 50%), #080b14' }} />
         </div>
-        <div className="relative" style={{ zIndex: 1 }}>
+        <div className="relative p-2 md:p-0" style={{ zIndex: 1 }}>
           <PlayVsEngine
             playerColor={playVsEngine}
             boardTheme={{ light: theme.light, dark: theme.dark }}
@@ -315,7 +364,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       {/* Main layout */}
       <div className="relative flex flex-col min-h-screen" style={{ zIndex: 1 }}>
         {/* Header */}
-        <header className="flex items-center justify-between px-4 md:px-8 py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.6)', backdropFilter: 'blur(12px)' }}>
+        <header className="flex items-center justify-between px-3 md:px-8 py-2.5 md:py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.6)', backdropFilter: 'blur(12px)' }}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 flex items-center justify-center text-2xl">♟</div>
             <div>
@@ -341,8 +390,8 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
 
         {/* Settings panel */}
         {settingsOpen && (
-          <div className="border-b px-4 md:px-8 py-4" style={{ background: 'rgba(6,8,16,0.85)', borderColor: 'rgba(107,140,174,0.1)', backdropFilter: 'blur(12px)' }}>
-            <div className="flex flex-wrap gap-8">
+          <div className="border-b px-3 md:px-8 py-3 md:py-4 overflow-x-auto" style={{ background: 'rgba(6,8,16,0.85)', borderColor: 'rgba(107,140,174,0.1)', backdropFilter: 'blur(12px)' }}>
+            <div className="flex flex-nowrap md:flex-wrap gap-4 md:gap-8 min-w-max md:min-w-0">
               <div>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#8daac4', fontSize: '0.6rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }}>BOARD</div>
                 <div className="flex gap-2">
@@ -356,16 +405,23 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                   ))}
                 </div>
               </div>
-              <div className="hidden md:block w-px self-stretch" style={{ background: 'rgba(107,140,174,0.12)' }} />
+              <div className="w-px self-stretch" style={{ background: 'rgba(107,140,174,0.12)' }} />
               <div>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#8daac4', fontSize: '0.6rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }}>PIECES</div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 md:gap-2">
                   {Object.entries(PIECE_SETS).map(([key, s]) => {
                     const previewUrl = `https://lichess1.org/assets/piece/${key}/wK.svg`;
+                    const isActive = pieceSet === key;
+                    const isSwitching = !pieceSetReady && !isActive;
                     return (
-                      <button key={key} onClick={() => setPieceSet(key)} className="flex flex-col items-center gap-1.5 transition-all hover:scale-105" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}>
-                        <div className="rounded-lg flex items-center justify-center" style={{ width: 44, height: 44, background: 'rgba(15,20,40,0.8)', outline: pieceSet === key ? '2px solid #6b8cae' : '2px solid rgba(107,140,174,0.12)', outlineOffset: 2, fontSize: '1.6rem' }}>
-                          <img src={previewUrl} alt={s.label} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                      <button key={key}
+                        onClick={() => setPieceSet(key)}
+                        onMouseEnter={() => preloadPieceSetSVGs(key)}
+                        className="flex flex-col items-center gap-1 transition-all hover:scale-105"
+                        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, opacity: isSwitching ? 0.5 : 1 }}
+                      >
+                        <div className="rounded-lg flex items-center justify-center" style={{ width: 36, height: 36, background: 'rgba(15,20,40,0.8)', outline: isActive ? '2px solid #6b8cae' : '2px solid rgba(107,140,174,0.12)', outlineOffset: 1, fontSize: '1.6rem' }}>
+                          <img src={previewUrl} alt={s.label} style={{ width: 26, height: 26, objectFit: 'contain' }} loading="lazy" />
                         </div>
                         <span style={{ fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", color: pieceSet === key ? '#fff' : 'rgba(150,142,130,0.5)', letterSpacing: '0.05em' }}>{s.label}</span>
                       </button>
@@ -373,9 +429,9 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                   })}
                 </div>
               </div>
-              <div className="hidden md:block w-px self-stretch" style={{ background: 'rgba(107,140,174,0.12)' }} />
+              <div className="w-px self-stretch" style={{ background: 'rgba(107,140,174,0.12)' }} />
               <div>
-                <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#8daac4', fontSize: '0.6rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }}>ORIENTATION</div>
+                <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#8daac4', fontSize: '0.6rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }}>ORIENT</div>
                 <div className="flex gap-2">
                   {['white', 'black'].map(c => (
                     <button key={c} onClick={() => setOrientation(c)} className="flex flex-col items-center gap-1.5 transition-all hover:scale-105" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}>
@@ -394,15 +450,15 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         {/* Body */}
         <div className="flex flex-1 overflow-hidden">
           {/* Center — Chessboard */}
-          <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 gap-6">
-            <div className="md:hidden text-center">
-              <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.9rem' }}>{activeOpening.name}</div>
-              <div style={{ color: '#94a3b8', fontSize: '0.7rem', marginTop: 2 }}>ECO {activeOpening.eco}</div>
+          <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-8 gap-3 md:gap-6">
+            <div className="md:hidden text-center mb-1">
+              <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.8rem' }}>{activeOpening.name}</div>
+              <div style={{ color: '#94a3b8', fontSize: '0.6rem', marginTop: 1 }}>ECO {activeOpening.eco}</div>
             </div>
 
             {/* Interactive Chess Board */}
             <div className="board-appear relative">
-              <div className="relative rounded-lg overflow-hidden p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
+              <div className="relative rounded-lg overflow-hidden p-1.5 md:p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
                 <div style={{ width: boardSize }}>
                   <ChessgroundBoard
                     config={cgConfig}
@@ -413,76 +469,77 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             </div>
 
             {/* Mobile-only: Choose Color + Play vs Engine (hidden on md+) */}
-            <div className="md:hidden flex flex-col gap-3 w-full max-w-sm">
+            <div className="md:hidden flex flex-col gap-2 w-full max-w-sm px-1">
               {!playerColor ? (
                 <>
-                  <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.7rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.1em', textAlign: 'center' }}>Which side do you play?</div>
-                  <div className="flex gap-3">
-                    <button onClick={() => chooseColor('w')} className="flex-1 rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(248,250,252,0.12), rgba(203,213,225,0.06))', border: '1px solid rgba(248,250,252,0.25)', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '2rem', lineHeight: 1 }}>♔</span>
-                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em' }}>WHITE</div>
+                  <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.65rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.1em', textAlign: 'center' }}>Which side do you play?</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => chooseColor('w')} className="flex-1 rounded-xl p-3 flex flex-col items-center gap-1 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(248,250,252,0.12), rgba(203,213,225,0.06))', border: '1px solid rgba(248,250,252,0.25)', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>♔</span>
+                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em' }}>WHITE</div>
                     </button>
-                    <button onClick={() => chooseColor('b')} className="flex-1 rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.6))', border: '1px solid rgba(107,140,174,0.22)', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '2rem', lineHeight: 1 }}>♚</span>
-                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em' }}>BLACK</div>
+                    <button onClick={() => chooseColor('b')} className="flex-1 rounded-xl p-3 flex flex-col items-center gap-1 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.6))', border: '1px solid rgba(107,140,174,0.22)', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>♚</span>
+                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em' }}>BLACK</div>
                     </button>
                   </div>
-                  <div style={{ color: 'rgba(150,142,130,0.35)', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.15em', textAlign: 'center' }}>— OR —</div>
-                  <button onClick={() => setPlayVsEngine('w')} className="w-full rounded-xl p-3 flex items-center gap-3 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
-                    <span style={{ fontSize: '1.3rem' }}>⚔</span>
-                    <div className="text-left flex-1">
-                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.08em' }}>PLAY AS WHITE</div>
-                      <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.55rem', marginTop: 2 }}>vs Stockfish</div>
-                    </div>
-                    <span style={{ fontSize: '1.1rem', color: '#6b8cae' }}>♔</span>
-                  </button>
-                  <button onClick={() => setPlayVsEngine('b')} className="w-full rounded-xl p-3 flex items-center gap-3 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
-                    <span style={{ fontSize: '1.3rem' }}>⚔</span>
-                    <div className="text-left flex-1">
-                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.08em' }}>PLAY AS BLACK</div>
-                      <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.55rem', marginTop: 2 }}>vs Stockfish</div>
-                    </div>
-                    <span style={{ fontSize: '1.1rem', color: '#6b8cae' }}>♚</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setPlayVsEngine('w')} className="flex-1 rounded-lg p-2.5 flex items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '1.1rem' }}>⚔</span>
+                      <div className="text-left flex-1">
+                        <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.6rem', letterSpacing: '0.08em' }}>PLAY AS WHITE</div>
+                        <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.5rem', marginTop: 1 }}>vs Stockfish</div>
+                      </div>
+                      <span style={{ fontSize: '0.9rem', color: '#6b8cae' }}>♔</span>
+                    </button>
+                    <button onClick={() => setPlayVsEngine('b')} className="flex-1 rounded-lg p-2.5 flex items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '1.1rem' }}>⚔</span>
+                      <div className="text-left flex-1">
+                        <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 600, fontSize: '0.6rem', letterSpacing: '0.08em' }}>PLAY AS BLACK</div>
+                        <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.5rem', marginTop: 1 }}>vs Stockfish</div>
+                      </div>
+                      <span style={{ fontSize: '0.9rem', color: '#6b8cae' }}>♚</span>
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="flex gap-2">
-                  <button onClick={() => setPlayerColor(null)} className="flex-1 py-2.5 rounded-lg transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
-                    <span style={{ color: '#8daac4', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>← CHANGE COLOR</span>
+                  <button onClick={() => setPlayerColor(null)} className="flex-1 py-2 rounded-lg transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
+                    <span style={{ color: '#8daac4', fontSize: '0.55rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>← CHANGE COLOR</span>
                   </button>
-                  <button onClick={() => chooseColor(playerColor === 'w' ? 'b' : 'w')} className="flex-1 py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
-                    <span style={{ fontSize: '0.75rem' }}>{playerColor === 'w' ? '♚' : '♔'}</span>
-                    <span style={{ color: '#8daac4', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>SWITCH</span>
+                  <button onClick={() => chooseColor(playerColor === 'w' ? 'b' : 'w')} className="flex-1 py-2 rounded-lg flex items-center justify-center gap-1 transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '0.7rem' }}>{playerColor === 'w' ? '♚' : '♔'}</span>
+                    <span style={{ color: '#8daac4', fontSize: '0.55rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>SWITCH</span>
                   </button>
                 </div>
               )}
             </div>
 
             {/* Controls */}
-            <div className="flex flex-col items-center gap-3 w-full max-w-sm md:max-w-md">
-              <div className="w-full rounded-lg px-4 py-2.5 text-center" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.14)', backdropFilter: 'blur(8px)' }}>
-                <div style={{ color: '#a8834a', fontFamily: "'Orbitron', sans-serif", fontSize: '0.75rem', letterSpacing: '0.1em' }}>{currentAnnotation}</div>
+            <div className="flex flex-col items-center gap-2 md:gap-3 w-full max-w-sm md:max-w-md">
+              <div className="w-full rounded-lg px-3 md:px-4 py-1.5 md:py-2.5 text-center" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.14)', backdropFilter: 'blur(8px)' }}>
+                <div style={{ color: '#a8834a', fontFamily: "'Orbitron', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em' }}>{currentAnnotation}</div>
               </div>
               <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(107,140,174,0.08)' }}>
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, #6b8cae, #7a8caa)', boxShadow: '0 0 8px rgba(59,130,246,0.6)' }} />
               </div>
-              <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.65rem', fontFamily: "'Orbitron', sans-serif" }}>Move {moveIndex} / {activeOpening.moves.length}</div>
-              <div className="flex items-center gap-3">
-                <button onClick={resetBoard} className="px-4 py-2 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)', color: '#7a746a', fontSize: '0.75rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>↺ RESET</button>
-                <button onClick={stepBack} disabled={moveIndex === 0} className="w-11 h-11 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: 'rgba(107,140,174,0.12)', border: '1px solid rgba(107,140,174,0.28)', color: '#8daac4', fontSize: '1.1rem', cursor: moveIndex === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
-                <button onClick={stepForward} disabled={moveIndex >= activeOpening.moves.length} className="w-11 h-11 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: moveIndex >= activeOpening.moves.length ? 'rgba(107,140,174,0.08)' : 'rgba(107,140,174,0.18)', border: '1px solid rgba(107,140,174,0.35)', color: '#a8c0d6', fontSize: '1.1rem', cursor: moveIndex >= activeOpening.moves.length ? 'not-allowed' : 'pointer' }}>›</button>
-                <button onClick={goToEnd} className="px-4 py-2 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(168,131,74,0.12)', border: '1px solid rgba(168,131,74,0.25)', color: '#a8834a', fontSize: '0.75rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>END →</button>
+              <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.55rem', fontFamily: "'Orbitron', sans-serif" }}>Move {moveIndex} / {activeOpening.moves.length}</div>
+              <div className="flex items-center gap-2 md:gap-3">
+                <button onClick={resetBoard} className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)', color: '#7a746a', fontSize: '0.65rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>↺ RESET</button>
+                <button onClick={stepBack} disabled={moveIndex === 0} className="w-9 h-9 md:w-11 md:h-11 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: 'rgba(107,140,174,0.12)', border: '1px solid rgba(107,140,174,0.28)', color: '#8daac4', fontSize: '1rem', cursor: moveIndex === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
+                <button onClick={stepForward} disabled={moveIndex >= activeOpening.moves.length} className="w-9 h-9 md:w-11 md:h-11 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: moveIndex >= activeOpening.moves.length ? 'rgba(107,140,174,0.08)' : 'rgba(107,140,174,0.18)', border: '1px solid rgba(107,140,174,0.35)', color: '#a8c0d6', fontSize: '1rem', cursor: moveIndex >= activeOpening.moves.length ? 'not-allowed' : 'pointer' }}>›</button>
+                <button onClick={goToEnd} className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(168,131,74,0.12)', border: '1px solid rgba(168,131,74,0.25)', color: '#a8834a', fontSize: '0.65rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>END →</button>
               </div>
               {/* Flip + Practice buttons */}
-              <div className="flex gap-3 w-full">
-                <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} className="flex-1 px-4 py-2.5 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(107,140,174,0.08)', border: '1px solid rgba(107,140,174,0.18)', color: '#8daac4', fontFamily: "'Orbitron', sans-serif", fontSize: '0.7rem', letterSpacing: '0.08em', cursor: 'pointer' }}>⟳ FLIP</button>
-                <button onClick={handlePractice} className="flex-[2] px-6 py-3 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', fontFamily: "'Orbitron', sans-serif", fontSize: '0.85rem', letterSpacing: '0.12em', cursor: 'pointer', boxShadow: '0 0 20px rgba(107,140,174,0.1)' }}>♠ PRACTICE THIS OPENING</button>
+              <div className="flex gap-2 w-full">
+                <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} className="flex-1 px-3 py-2 md:py-2.5 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(107,140,174,0.08)', border: '1px solid rgba(107,140,174,0.18)', color: '#8daac4', fontFamily: "'Orbitron', sans-serif", fontSize: '0.6rem', letterSpacing: '0.08em', cursor: 'pointer' }}>⟳ FLIP</button>
+                <button onClick={handlePractice} className="flex-[2] px-4 md:px-6 py-2 md:py-3 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', fontFamily: "'Orbitron', sans-serif", fontSize: '0.7rem', letterSpacing: '0.1em', cursor: 'pointer', boxShadow: '0 0 20px rgba(107,140,174,0.1)' }}>♠ PRACTICE</button>
               </div>
             </div>
           </main>
 
           {/* Sidebar */}
-          <aside className={`fixed md:relative inset-y-0 right-0 md:inset-auto w-72 md:w-80 lg:w-96 flex flex-col transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`} style={{ background: 'rgba(6,8,16,0.92)', borderLeft: '1px solid rgba(107,140,174,0.12)', backdropFilter: 'blur(20px)', zIndex: 50 }}>
+          <aside className={`fixed md:relative inset-y-0 right-0 md:inset-auto w-[280px] md:w-80 lg:w-96 flex flex-col transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`} style={{ background: 'rgba(6,8,16,0.92)', borderLeft: '1px solid rgba(107,140,174,0.12)', backdropFilter: 'blur(20px)', zIndex: 50 }}>
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.1)' }}>
               <div>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.15em' }}>{playerColor ? 'REPERTOIRES' : 'CHOOSE COLOR'}</div>
@@ -589,7 +646,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       )}
 
       {/* Footer — License & Credits */}
-      <footer className="relative w-full px-4 md:px-8 py-3 border-t flex flex-wrap items-center justify-between gap-2" style={{ zIndex: 1, borderColor: 'rgba(107,140,174,0.08)', background: 'rgba(6,8,16,0.5)' }}>
+      <footer className="relative w-full px-3 md:px-8 py-2 md:py-3 border-t flex flex-wrap items-center justify-between gap-2" style={{ zIndex: 1, borderColor: 'rgba(107,140,174,0.08)', background: 'rgba(6,8,16,0.5)' }}>
         <div className="flex items-center gap-3 text-[10px]" style={{ color: 'rgba(150,142,130,0.4)' }}>
           <span>© 2024–2026 CHOC Opening Trainer</span>
           <span>·</span>
