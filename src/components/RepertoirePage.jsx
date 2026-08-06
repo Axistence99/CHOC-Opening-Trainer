@@ -589,6 +589,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             <div className="min-w-0">
               <h1 className="font-orbitron font-bold text-sm truncate" style={{ color: '#ddd8cc', letterSpacing: '0.08em' }}>{repertoire.name}</h1>
               <p className="text-[10px] truncate" style={{ color: 'rgba(150,142,130,0.5)' }}>{openingName}</p>
+              {repertoire.tags && repertoire.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {repertoire.tags.map(t => (
+                    <span key={t} className="px-1.5 py-0.5 rounded text-[9px]" style={{ background: 'rgba(107,140,174,0.15)', border: '1px solid rgba(107,140,174,0.25)', color: '#8daac4' }}>{t}</span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -907,6 +914,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                       <p>Lines: {allLines.length}</p>
                       <p>PGN size: {repertoire.pgn?.length || 0} chars</p>
                     </div>
+                    {repertoire.tags && repertoire.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {repertoire.tags.map(t => (
+                          <span key={t} className="px-1.5 py-0.5 rounded text-[9px]" style={{ background: 'rgba(107,140,174,0.15)', border: '1px solid rgba(107,140,174,0.25)', color: '#8daac4' }}>{t}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="rounded-xl p-3" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>

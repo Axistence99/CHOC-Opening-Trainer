@@ -5,6 +5,7 @@ import { parsePGNToTree, countPositions } from '../utils/pgnParser';
 import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires';
 import { getAllBoardThemes, getBoardTheme, getBoardThemeBackground, getBoardThemePreview } from '../data/boardThemes';
 import PlayVsEngine from './PlayVsEngine';
+import RepertoireEditor from './RepertoireEditor';
 
 const OPENINGS = [
   { id: 'sicilian', name: 'Sicilian Defense', eco: 'B20', tags: ['Aggressive', 'Black', 'Semi-Open'], description: 'The most popular response to 1.e4. Creates an asymmetrical game full of tactical complexity.', moves: ['e4', 'c5', 'Nf3', 'd6', 'd4'] },
@@ -145,6 +146,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const [moveIndex, setMoveIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [currentBoardTheme, setCurrentBoardTheme] = useState(boardTheme || 'space');
   const [pieceSet, setPieceSetRaw] = useState(getSavedPieceSet);
   const [pieceSetReady, setPieceSetReady] = useState(true); // false while preloading
@@ -308,6 +310,16 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     }
   };
 
+  const handleEditorSave = useCallback((rep) => {
+    // Persist the newly created repertoire (without tree — Map doesn't survive JSON).
+    const toStore = { ...rep, tree: undefined };
+    try {
+      addRepertoire(toStore);
+    } catch (e) { console.error(e); }
+    setEditorOpen(false);
+    onSelectRepertoire(rep);
+  }, [onSelectRepertoire]);
+
   const themeObj = getBoardTheme(currentBoardTheme);
   const boardBg = getBoardThemeBackground(currentBoardTheme);
   const activeOpening = selectedOpening;
@@ -344,6 +356,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
               <div className="h-4 w-px" style={{ background: 'rgba(107,140,174,0.22)' }} />
               <div style={{ color: 'rgba(170,162,148,0.75)', fontSize: '0.8rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em' }}>← → Navigate</div>
             </div>
+            <button onClick={() => setEditorOpen(true)} title="Create Repertoire" className="flex items-center justify-center gap-1.5 px-3 h-9 rounded-lg transition-all hover:scale-105 text-xs font-orbitron" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', letterSpacing: '0.08em', cursor: 'pointer' }}>＋ CREATE</button>
             <button onClick={() => setSettingsOpen(v => !v)} title="Board Settings" className="flex items-center justify-center w-9 h-9 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: settingsOpen ? 'rgba(107,140,174,0.18)' : 'rgba(107,140,174,0.07)', border: `1px solid ${settingsOpen ? 'rgba(107,140,174,0.35)' : 'rgba(107,140,174,0.14)'}`, color: settingsOpen ? '#8daac4' : '#475569', fontSize: '1rem', cursor: 'pointer' }}>⚙</button>
             <button className="md:hidden flex flex-col gap-1 p-2" onClick={() => setSidebarOpen(v => !v)} aria-label="Toggle repertoires">
               {[0,1,2].map(i => <div key={i} className="w-5 h-0.5 rounded" style={{ background: '#8daac4' }} />)}
@@ -415,6 +428,13 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         )}
 
         {/* Body */}
+        {editorOpen ? (
+          <RepertoireEditor
+            boardTheme={boardTheme}
+            onExit={() => setEditorOpen(false)}
+            onSave={handleEditorSave}
+          />
+        ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Center — Play vs Stockfish board */}
           <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-8">
@@ -509,6 +529,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             </div>
           </aside>
         </div>
+        )}
       </div>
 
       {/* Mobile sidebar backdrop */}
