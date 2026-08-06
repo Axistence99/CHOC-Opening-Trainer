@@ -337,7 +337,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       </div>
 
       {/* Main layout */}
-      <div className="relative flex flex-col min-h-screen" style={{ zIndex: 1 }}>
+      <div className="relative flex flex-col h-screen" style={{ zIndex: 1 }}>
         {/* Header */}
         <header className="flex items-center justify-between px-3 md:px-8 py-2.5 md:py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.85)' }}>
           <div className="flex items-center gap-3">
