@@ -306,47 +306,66 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     // Note: the PRACTICE button must call this with () => to avoid React passing
     // the click event here (openingOverride would then be a SyntheticEvent).
     const target = (openingOverride && openingOverride.id) ? openingOverride : activeOpening;
-    // Explicit map of browse-opening id -> prebuilt repertoire id, so each
-    // opening reliably opens the correct repertoire instead of guessing.
+
+    // Exact, intentional matches between browse openings and prebuilt repertoires.
     const OPENING_TO_PREBUILT = {
       'sicilian': 'sicilian-dragon',
-      'ruy-lopez': 'italian-game',
       'queens-gambit': 'queens-gambit',
       'kings-indian': 'kings-indian',
-      'french': 'beginner-white',
-      'london': 'beginner-white',
       'catalan-white': 'catalan-white',
     };
     const mappedId = OPENING_TO_PREBUILT[target.id];
-    // Try explicit id match first, then name-based matching
-    let matching = mappedId
-      ? PREBUILT_REPERTOIRES.find(p => p.id === mappedId)
-      : PREBUILT_REPERTOIRES.find(p =>
-          target.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0]) ||
-          p.name.toLowerCase().includes(target.name.toLowerCase().split(' ')[0])
-        );
+    const matching = mappedId
+      ? PREBUILT_REPERTOIRES.find((p) => p.id === mappedId)
+      : null;
+
     if (matching) {
       const repertoires = getRepertoires();
-      if (!repertoires.some(r => r.id === matching.id)) {
+      if (!repertoires.some((r) => r.id === matching.id)) {
         try {
-          const tree = parsePGNToTree(matching.pgn);
-          const positionCount = countPositions(tree) - 1;
-          // NOTE: do NOT persist `tree` — it uses Map objects that don't survive
-          // JSON serialization (they become plain {} and break iteration later).
-          const newRep = { ...matching, positionCount, isPrebuilt: true, createdAt: Date.now() };
-          addRepertoire(newRep);
+          // NOTE: do NOT persist `tree` — Map objects don't survive JSON serialization.
+          addRepertoire({ ...matching, positionCount: 0, isPrebuilt: true, createdAt: Date.now() });
         } catch (e) { console.error(e); }
       }
-      // Always rebuild a fresh tree from the PGN. The tree stored in localStorage
-      // (if any) is JSON-corrupted (Maps -> {}) and cannot be iterated.
+      // Always rebuild a fresh tree from the PGN.
       try {
         const tree = parsePGNToTree(matching.pgn);
-        const repWithTree = { ...matching, tree };
-        onSelectRepertoire(repWithTree);
+        onSelectRepertoire({ ...matching, tree });
       } catch (e) {
         console.error(e);
         onSelectRepertoire(matching);
       }
+      return;
+    }
+
+    // No dedicated prebuilt repertoire — build a correctly-named repertoire from
+    // the browse opening's own preview moves so the page title matches what the
+    // user clicked (e.g. "Ruy López" opens a Ruy López repertoire, not Italian).
+    try {
+      // Replay the opening moves in order on a single board to get valid SANs.
+      const c = new Chess();
+      const sans = [];
+      for (const m of (target.moves || [])) {
+        const r = c.move(m);
+        sans.push(r ? r.san : m);
+      }
+      const pgn = `[Event "${target.name}"]\n\n${sans.map((s, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${s}` : s)).join(' ')} *`;
+      const tree = parsePGNToTree(pgn);
+      const color = target.tags && target.tags.includes('Black') ? 'black' : 'white';
+      const rep = {
+        id: `opening-${target.id}`,
+        name: target.name,
+        color,
+        description: target.description || '',
+        pgn,
+        tree,
+        positionCount: countPositions(tree) - 1,
+        isPrebuilt: false,
+        createdAt: Date.now(),
+      };
+      onSelectRepertoire(rep);
+    } catch (e) {
+      console.error(e);
     }
   };
 

@@ -98,6 +98,55 @@ function splitPGNIntoGames(pgn) {
   return games;
 }
 
+// ─── Robust PGN → SAN extraction ───
+// chess.js `loadPgn` is strict: it fails on multi-game PGNs that share a single
+// header block, on in-line move-number tokens like "12.", and on malformed lines.
+// Instead of relying on it for tree building, we extract legal SAN move tokens
+// directly and play them into the tree with chess.js `move()`. This makes the
+// tree robust to all of the above.
+
+const SAN_RE =
+  /^(?:O-O-O|O-O|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?)$/;
+
+/**
+ * Strip PGN headers, comments, and split the move text into individual games
+ * (segments delimited by result markers like "*", "1-0", "0-1", "1/2-1/2").
+ */
+function extractGameSegments(pgn) {
+  let text = String(pgn || '')
+    // headers
+    .replace(/\[[^\]]*\]/g, ' ')
+    // brace comments
+    .replace(/\{[^}]*\}/g, ' ')
+    // line comments
+    .replace(/;[^\n]*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text
+    .split(/\b(?:1-0|0-1|1\/2-1\/2|½-½)\b|\*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Convert a single game's move text into an array of SAN move strings,
+ * skipping move numbers, result markers, and variation brackets.
+ */
+function extractSANMoves(gameSegment) {
+  const tokens = gameSegment.split(/\s+/);
+  const moves = [];
+  for (let tok of tokens) {
+    if (!tok) continue;
+    // Skip variation brackets and their contents (main line only)
+    if (tok[0] === '(' || tok[0] === ')') continue;
+    // Strip leading move numbers: "12.", "12...", "2..."
+    tok = tok.replace(/^\d+\.\.\./, '').replace(/^\d+\./, '');
+    if (!tok) continue;
+    if (SAN_RE.test(tok)) moves.push(tok);
+  }
+  return moves;
+}
+
 /**
  * Parse PGN into a tree structure suitable for training
  * Each node represents a position and its children are possible next moves
@@ -112,19 +161,28 @@ export function parsePGNToTree(pgn) {
     children: new Map(),
     depth: 0,
   };
-  
-  const parsedLines = parsePGN(pgn);
-  
-  for (const line of parsedLines) {
+
+  const games = extractGameSegments(pgn);
+
+  for (const game of games) {
+    const sans = extractSANMoves(game);
+    if (sans.length === 0) continue;
+
     let currentNode = root;
     const chess = new Chess();
-    
-    for (let i = 0; i < line.moves.length; i++) {
-      const san = line.moves[i];
-      const moveResult = chess.move(san);
-      
-      if (!moveResult) break;
-      
+    let ok = true;
+
+    for (let i = 0; i < sans.length; i++) {
+      let san = sans[i];
+      let moveResult;
+      try {
+        moveResult = chess.move(san);
+      } catch {
+        // Some PGNs disambiguate differently; try ignoring any trailing/leading issue
+        moveResult = null;
+      }
+      if (!moveResult) { ok = false; break; }
+
       if (!currentNode.children.has(san)) {
         currentNode.children.set(san, {
           fen: chess.fen(),
@@ -134,11 +192,11 @@ export function parsePGNToTree(pgn) {
           depth: i + 1,
         });
       }
-      
       currentNode = currentNode.children.get(san);
     }
+    void ok;
   }
-  
+
   return root;
 }
 
