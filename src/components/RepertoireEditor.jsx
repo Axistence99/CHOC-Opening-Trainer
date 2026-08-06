@@ -208,9 +208,9 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
   }), [fen, orientation, turnColor, dests, handlePlay]);
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
       {/* Editor main area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-6 gap-3 overflow-y-auto">
+      <div className="flex-1 md:min-h-0 flex flex-col items-center justify-start md:justify-center p-2 md:p-6 gap-3">
         {/* Board */}
         <div className="relative rounded-lg overflow-hidden p-1.5 md:p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
           <div style={{ width: boardSize }}>
@@ -230,7 +230,7 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
       </div>
 
       {/* Editor side panel */}
-      <aside className="w-80 lg:w-96 flex flex-col border-l overflow-y-auto" style={{ background: 'rgba(6,8,16,0.97)', borderLeftColor: 'rgba(107,140,174,0.12)' }}>
+      <aside className="w-full md:w-80 lg:w-96 flex flex-col md:border-l border-t md:border-t-0 md:overflow-y-auto" style={{ background: 'rgba(6,8,16,0.97)', borderLeftColor: 'rgba(107,140,174,0.12)', borderTopColor: 'rgba(107,140,174,0.12)' }}>
         <div className="flex-1 p-4 space-y-4">
 
           {/* Name + description */}

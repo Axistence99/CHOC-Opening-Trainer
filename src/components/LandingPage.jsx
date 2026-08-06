@@ -530,12 +530,13 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
           </aside>
         </div>
         )}
-      </div>
 
-      {/* Mobile sidebar backdrop */}
+      {/* Mobile sidebar backdrop — inside the zIndex:1 wrapper so it stays BELOW
+          the drawer (aside zIndex:50) but ABOVE the board/content. */}
       {sidebarOpen && (
-        <div className="fixed inset-0 md:hidden" style={{ background: 'rgba(0,0,0,0.7)', zIndex: 40 }} onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 md:hidden" style={{ background: 'rgba(0,0,0,0.7)', zIndex: 30 }} onClick={() => setSidebarOpen(false)} />
       )}
+      </div>
 
       {/* Footer — License & Credits */}
       <footer className="relative w-full px-3 md:px-8 py-2 md:py-3 border-t flex flex-wrap items-center justify-between gap-2" style={{ zIndex: 1, borderColor: 'rgba(107,140,174,0.08)', background: 'rgba(6,8,16,0.5)' }}>
