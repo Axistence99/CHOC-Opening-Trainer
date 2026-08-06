@@ -2,7 +2,7 @@
  * Cache-first runtime caching. The app becomes fully usable offline
  * after the user has visited once (app shell + Stockfish engine cached).
  */
-const CACHE_VERSION = 'choc-v1';
+const CACHE_VERSION = 'choc-v2';
 const PRECACHE = [
   './',
   './index.html',
@@ -10,6 +10,9 @@ const PRECACHE = [
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png',
+  './favicon.ico',
+  './favicon.png',
+  './favicon-16.png',
   // Stockfish engine — allow offline engine play
   './engine/stockfish.wasm',
   './engine/stockfish.wasm.js',
