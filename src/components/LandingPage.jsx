@@ -388,11 +388,14 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       <div className="relative flex flex-col h-screen" style={{ zIndex: 1 }}>
         {/* Header */}
         <header className="flex items-center justify-between px-3 md:px-8 py-2.5 md:py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.85)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 flex items-center justify-center text-2xl">♟</div>
-            <div>
-              <div style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 700, fontSize: '1.1rem', color: '#ddd8cc', letterSpacing: '0.08em' }}>
-                CHOC <span style={{ color: '#6b8cae' }}>Opening Trainer</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 flex items-center justify-center text-2xl" style={{ color: '#ddd8cc' }}>♟</div>
+            <div className="flex flex-col justify-center">
+              <div style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 900, fontSize: '0.9rem', color: '#ddd8cc', letterSpacing: '0.12em', lineHeight: 1 }}>
+                CHOC
+              </div>
+              <div style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 600, fontSize: '0.6rem', color: '#6b8cae', letterSpacing: '0.12em', lineHeight: 1, marginTop: '3px' }}>
+                OPENING TRAINER
               </div>
             </div>
           </div>
