@@ -17,6 +17,51 @@ const OPENINGS = [
   { id: 'catalan-white', name: 'Catalan for White', eco: 'E05', tags: ['Positional', 'White', 'Closed'], description: 'A complex, theory-based opening where White fianchettos and pressures the long diagonal. Leads to small but lingering advantages and better pawn structures.', moves: ['d4', 'd5', 'c4', 'e6', 'Nf3', 'Nf6', 'g3'] },
 ];
 
+// Extract main line SAN moves from custom repertoire
+function getCustomRepertoireMoves(rep) {
+  if (rep.moves && Array.isArray(rep.moves) && rep.moves.length > 0) return rep.moves;
+  if (rep.pgn) {
+    try {
+      const tree = parsePGNToTree(rep.pgn);
+      const history = [];
+      let curr = tree;
+      while (curr && curr.children && curr.children.size > 0) {
+        const [san, next] = curr.children.entries().next().value;
+        history.push(san);
+        curr = next;
+      }
+      return history;
+    } catch { return []; }
+  }
+  return [];
+}
+
+// Combine saved custom repertoires with default prebuilt openings
+function loadAllOpenings() {
+  const customReps = getRepertoires();
+  const formattedCustoms = customReps.map(rep => {
+    const isWhite = rep.color === 'white' || (rep.tags && rep.tags.includes('White'));
+    const colorTag = isWhite ? 'White' : 'Black';
+    const existingTags = Array.isArray(rep.tags) ? rep.tags : [];
+    const tags = existingTags.includes(colorTag) ? existingTags : [colorTag, ...existingTags];
+    const moves = rep.moves || getCustomRepertoireMoves(rep);
+    return {
+      id: rep.id,
+      name: rep.name || 'Custom Repertoire',
+      eco: rep.eco || 'Custom',
+      tags,
+      description: rep.description || 'Custom user repertoire',
+      moves,
+      color: isWhite ? 'white' : 'black',
+      isCustom: true,
+      pgn: rep.pgn,
+      tree: rep.tree,
+      createdAt: rep.createdAt,
+    };
+  });
+  return [...formattedCustoms, ...OPENINGS];
+}
+
 // Build annotation strings from opening moves
 function buildAnnotations(moves) {
   const chess = new Chess();
@@ -142,7 +187,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const [playerColor, setPlayerColor] = useState(null);
   // engineColor controls who the user plays as vs Stockfish — independent of playerColor.
   const [engineColor, setEngineColor] = useState('w');
-  const [selectedOpening, setSelectedOpening] = useState(OPENINGS[0]);
+  const [selectedOpening, setSelectedOpening] = useState(() => loadAllOpenings()[0]);
   const [moveIndex, setMoveIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -163,16 +208,19 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
 
   const pieceStyleRef = useRef(null);
 
+  const allOpenings = useMemo(() => loadAllOpenings(), [editorOpen, playerColor]);
+
   // Compute positions for current opening
   const positions = useMemo(() => computePositions(selectedOpening.moves), [selectedOpening]);
   const annotations = useMemo(() => buildAnnotations(selectedOpening.moves), [selectedOpening]);
 
   const filteredOpenings = playerColor
-    ? OPENINGS.filter(o => o.tags.includes(playerColor === 'w' ? 'White' : 'Black'))
+    ? allOpenings.filter(o => o.tags.includes(playerColor === 'w' ? 'White' : 'Black') || (playerColor === 'w' ? o.color === 'white' : o.color === 'black'))
     : [];
 
   const chooseColor = (c) => {
-    const first = OPENINGS.find(o => o.tags.includes(c === 'w' ? 'White' : 'Black')) || OPENINGS[0];
+    const list = loadAllOpenings();
+    const first = list.find(o => o.tags.includes(c === 'w' ? 'White' : 'Black') || (c === 'w' ? o.color === 'white' : o.color === 'black')) || list[0];
     setPlayerColor(c);
     setSelectedOpening(first);
     setMoveIndex(0);
@@ -351,7 +399,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-6">
               <div style={{ color: 'rgba(170,162,148,0.75)', fontSize: '0.8rem' }}>
-                <span style={{ color: '#8daac4' }}>{OPENINGS.length}</span> Repertoires
+                <span style={{ color: '#8daac4' }}>{allOpenings.length}</span> Repertoires
               </div>
               <div className="h-4 w-px" style={{ background: 'rgba(107,140,174,0.22)' }} />
               <div style={{ color: 'rgba(170,162,148,0.75)', fontSize: '0.8rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em' }}>← → Navigate</div>
@@ -464,14 +512,14 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                   <span style={{ fontSize: '3rem', lineHeight: 1 }}>♔</span>
                   <div>
                     <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '0.1em', textAlign: 'center' }}>WHITE</div>
-                    <div style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.65rem', marginTop: 4, textAlign: 'center' }}>{OPENINGS.filter(o => o.tags.includes('White')).length} openings available</div>
+                    <div style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.65rem', marginTop: 4, textAlign: 'center' }}>{allOpenings.filter(o => o.tags.includes('White') || o.color === 'white').length} openings available</div>
                   </div>
                 </button>
                 <button onClick={() => chooseColor('b')} className="w-full rounded-2xl p-5 flex flex-col items-center gap-3 transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.6))', border: '1px solid rgba(107,140,174,0.22)', boxShadow: '0 0 30px rgba(107,140,174,0.07)', cursor: 'pointer' }}>
                   <span style={{ fontSize: '3rem', lineHeight: 1 }}>♚</span>
                   <div>
                     <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '0.1em', textAlign: 'center' }}>BLACK</div>
-                    <div style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.65rem', marginTop: 4, textAlign: 'center' }}>{OPENINGS.filter(o => o.tags.includes('Black')).length} openings available</div>
+                    <div style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.65rem', marginTop: 4, textAlign: 'center' }}>{allOpenings.filter(o => o.tags.includes('Black') || o.color === 'black').length} openings available</div>
                   </div>
                 </button>
               </div>

@@ -170,12 +170,22 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
     if (!name.trim()) { setSaveMsg('⚠ Please enter a repertoire name.'); return; }
     if (positionCount === 0) { setSaveMsg('⚠ Add at least one move before saving.'); return; }
     const pgn = treeToPGN(tree, name.trim());
+    const colorTag = color === 'white' ? 'White' : 'Black';
+    const allTags = tags.includes(colorTag) ? [...tags] : [colorTag, ...tags];
+    const moves = [];
+    let curr = tree;
+    while (curr && curr.children && curr.children.size > 0) {
+      const [san, next] = curr.children.entries().next().value;
+      moves.push(san);
+      curr = next;
+    }
     const rep = {
       id: `custom-${Date.now()}`,
       name: name.trim(),
       color,
       description: description.trim() || `${name.trim()} · ${positionCount} moves`,
-      tags: [...tags],
+      tags: allTags,
+      moves,
       pgn,
       tree,
       positionCount,
