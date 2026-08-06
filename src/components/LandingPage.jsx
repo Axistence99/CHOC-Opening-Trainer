@@ -4,7 +4,6 @@ import { getRepertoires, addRepertoire } from '../utils/storage';
 import { parsePGNToTree, countPositions } from '../utils/pgnParser';
 import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires';
 import { getAllBoardThemes, getBoardTheme, getBoardThemeBackground, getBoardThemePreview } from '../data/boardThemes';
-import ChessgroundBoard from './ChessgroundBoard';
 import PlayVsEngine from './PlayVsEngine';
 
 const OPENINGS = [
@@ -156,7 +155,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     });
   }, [pieceSet]);
   const [orientation, setOrientation] = useState('white');
-  const [playVsEngine, setPlayVsEngine] = useState(null); // null or 'w'/'b'
 
   const pieceStyleRef = useRef(null);
 
@@ -210,66 +208,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     return () => window.removeEventListener('keydown', handler);
   }, [stepForward, stepBack, resetBoard, goToEnd]);
 
-  // Handle user making a move on the board (drag/click)
-  const handleUserMove = useCallback((orig, dest) => {
-    const chess = new Chess(positions[moveIndex].fen);
-    const move = chess.move({ from: orig, to: dest, promotion: 'q' });
-    if (move) {
-      // Check if this matches the next expected move in the opening
-      if (moveIndex < selectedOpening.moves.length) {
-        const expectedSan = selectedOpening.moves[moveIndex];
-        if (move.san === expectedSan) {
-          setMoveIndex(i => i + 1);
-        } else {
-          // Wrong move — briefly flash and reset
-          setMoveIndex(i => i); // force re-render to reset board
-        }
-      }
-    }
-  }, [positions, moveIndex, selectedOpening]);
-
-  // Compute dests for current position
-  const currentFen = positions[moveIndex]?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-  const currentLastMove = positions[moveIndex]?.lastMove || undefined;
-  const currentTurnColor = positions[moveIndex]?.turnColor || 'white';
-  const dests = useMemo(() => computeDests(currentFen), [currentFen]);
-
-  // Chessground config — landing page board is DISPLAY-ONLY.
-  // Users step through the opening with navigation buttons.
-  // Free piece dragging is disabled to avoid bugs with move matching.
-  // The PRACTICE button opens the full interactive mode.
-  const cgConfig = useMemo(() => ({
-    fen: currentFen,
-    orientation,
-    turnColor: currentTurnColor,
-    lastMove: currentLastMove,
-    coordinates: true,
-    highlight: {
-      lastMove: true,
-      check: true,
-    },
-    animation: {
-      enabled: true,
-      duration: 200,
-    },
-    movable: {
-      free: false,
-      dests: new Map(), // no legal moves — display only
-      showDests: false,
-      color: undefined,
-    },
-    draggable: {
-      enabled: false,
-    },
-    selectable: {
-      enabled: false,
-    },
-    drawable: {
-      enabled: false,
-      visible: true,
-    },
-  }), [currentFen, orientation, currentTurnColor, currentLastMove]);
-
   // Inject piece set CSS synchronously BEFORE paint to avoid flash of wrong pieces.
   // useLayoutEffect fires synchronously after DOM mutation but before the browser paints.
   // When switching to cburnett: clear overrides so bundled CSS takes effect.
@@ -293,8 +231,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const currentAnnotation = moveIndex > 0 ? annotations[moveIndex - 1] : 'Starting position';
-  const progressPct = (moveIndex / selectedOpening.moves.length) * 100;
 
   const handleThemeChange = (key) => {
     setCurrentBoardTheme(key);
@@ -372,25 +308,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const themeObj = getBoardTheme(currentBoardTheme);
   const boardBg = getBoardThemeBackground(currentBoardTheme);
   const activeOpening = selectedOpening;
-  const boardSize = 'min(calc(100vw - 40px), 560px)';
-
-  // If playing vs engine, render that instead
-  if (playVsEngine) {
-    return (
-      <div className="relative min-h-screen overflow-hidden" style={{ background: '#080b14', fontFamily: "'Inter', sans-serif" }}>
-        <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 25% 45%, #0e1828 0%, transparent 58%), radial-gradient(ellipse at 75% 20%, #110e20 0%, transparent 52%), radial-gradient(ellipse at 55% 85%, #0c1520 0%, transparent 50%), #080b14' }} />
-        </div>
-        <div className="relative p-2 md:p-0" style={{ zIndex: 1 }}>
-          <PlayVsEngine
-            playerColor={playVsEngine}
-            boardTheme={boardBg}
-            onExit={() => setPlayVsEngine(null)}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: '#080b14', fontFamily: "'Inter', sans-serif" }}>
@@ -496,93 +413,14 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
 
         {/* Body */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Center — Chessboard */}
-          <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-8 gap-3 md:gap-6">
-            {playerColor && <div className="md:hidden text-center mb-1">
-              <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.8rem' }}>{activeOpening.name}</div>
-              <div style={{ color: '#94a3b8', fontSize: '0.6rem', marginTop: 1 }}>ECO {activeOpening.eco}</div>
-            </div>}
-
-            {/* Interactive Chess Board */}
-            <div className="relative">
-              <div className="relative rounded-lg overflow-hidden p-1.5 md:p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
-                <div style={{ width: boardSize }}>
-                  <ChessgroundBoard
-                    config={cgConfig}
-                    boardTheme={boardBg}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile-only: Choose Color + Play vs Engine (hidden on md+) */}
-            <div className="md:hidden flex flex-col gap-2 w-full max-w-sm px-1">
-              {!playerColor ? (
-                <>
-                  <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.65rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.1em', textAlign: 'center' }}>Which side do you play?</div>
-                  <div className="flex gap-2">
-                    <button onClick={() => chooseColor('w')} className="flex-1 rounded-xl p-3 flex flex-col items-center gap-1 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(248,250,252,0.12), rgba(203,213,225,0.06))', border: '1px solid rgba(248,250,252,0.25)', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>♔</span>
-                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em' }}>WHITE</div>
-                    </button>
-                    <button onClick={() => chooseColor('b')} className="flex-1 rounded-xl p-3 flex flex-col items-center gap-1 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.6))', border: '1px solid rgba(107,140,174,0.22)', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>♚</span>
-                      <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em' }}>BLACK</div>
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setPlayVsEngine('w')} className="flex-1 rounded-lg p-2.5 flex items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '1.1rem' }}>⚔</span>
-                      <div className="text-left flex-1">
-                        <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.6rem', letterSpacing: '0.08em' }}>PLAY AS WHITE</div>
-                        <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.5rem', marginTop: 1 }}>vs Stockfish</div>
-                      </div>
-                      <span style={{ fontSize: '0.9rem', color: '#6b8cae' }}>♔</span>
-                    </button>
-                    <button onClick={() => setPlayVsEngine('b')} className="flex-1 rounded-lg p-2.5 flex items-center gap-2 transition-all active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '1.1rem' }}>⚔</span>
-                      <div className="text-left flex-1">
-                        <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 600, fontSize: '0.6rem', letterSpacing: '0.08em' }}>PLAY AS BLACK</div>
-                        <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.5rem', marginTop: 1 }}>vs Stockfish</div>
-                      </div>
-                      <span style={{ fontSize: '0.9rem', color: '#6b8cae' }}>♚</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex gap-2">
-                  <button onClick={() => setPlayerColor(null)} className="flex-1 py-2 rounded-lg transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
-                    <span style={{ color: '#8daac4', fontSize: '0.55rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>← CHANGE COLOR</span>
-                  </button>
-                  <button onClick={() => chooseColor(playerColor === 'w' ? 'b' : 'w')} className="flex-1 py-2 rounded-lg flex items-center justify-center gap-1 transition-all active:scale-95" style={{ background: 'rgba(107,140,174,0.07)', border: '1px solid rgba(107,140,174,0.14)', cursor: 'pointer' }}>
-                    <span style={{ fontSize: '0.7rem' }}>{playerColor === 'w' ? '♚' : '♔'}</span>
-                    <span style={{ color: '#8daac4', fontSize: '0.55rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.08em' }}>SWITCH</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Controls — only shown after user picks a color */}
-            {playerColor && <div className="flex flex-col items-center gap-2 md:gap-3 w-full max-w-sm md:max-w-md">
-              <div className="w-full rounded-lg px-3 md:px-4 py-1.5 md:py-2.5 text-center" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.14)' }}>
-                <div style={{ color: '#a8834a', fontFamily: "'Orbitron', sans-serif", fontSize: '0.65rem', letterSpacing: '0.1em' }}>{currentAnnotation}</div>
-              </div>
-              <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(107,140,174,0.08)' }}>
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, #6b8cae, #7a8caa)', boxShadow: '0 0 8px rgba(59,130,246,0.6)' }} />
-              </div>
-              <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.55rem', fontFamily: "'Orbitron', sans-serif" }}>Move {moveIndex} / {activeOpening.moves.length}</div>
-              <div className="flex items-center gap-2 md:gap-3">
-                <button onClick={resetBoard} className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)', color: '#7a746a', fontSize: '0.65rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>↺ RESET</button>
-                <button onClick={stepBack} disabled={moveIndex === 0} className="w-9 h-9 md:w-11 md:h-11 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: 'rgba(107,140,174,0.12)', border: '1px solid rgba(107,140,174,0.28)', color: '#8daac4', fontSize: '1rem', cursor: moveIndex === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
-                <button onClick={stepForward} disabled={moveIndex >= activeOpening.moves.length} className="w-9 h-9 md:w-11 md:h-11 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed" style={{ background: moveIndex >= activeOpening.moves.length ? 'rgba(107,140,174,0.08)' : 'rgba(107,140,174,0.18)', border: '1px solid rgba(107,140,174,0.35)', color: '#a8c0d6', fontSize: '1rem', cursor: moveIndex >= activeOpening.moves.length ? 'not-allowed' : 'pointer' }}>›</button>
-                <button onClick={goToEnd} className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(168,131,74,0.12)', border: '1px solid rgba(168,131,74,0.25)', color: '#a8834a', fontSize: '0.65rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em', cursor: 'pointer' }}>END →</button>
-              </div>
-              {/* Flip + Practice buttons */}
-              <div className="flex gap-2 w-full">
-                <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} className="flex-1 px-3 py-2 md:py-2.5 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(107,140,174,0.08)', border: '1px solid rgba(107,140,174,0.18)', color: '#8daac4', fontFamily: "'Orbitron', sans-serif", fontSize: '0.6rem', letterSpacing: '0.08em', cursor: 'pointer' }}>⟳ FLIP</button>
-                <button onClick={() => handlePractice()} className="flex-[2] px-4 md:px-6 py-2 md:py-3 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', fontFamily: "'Orbitron', sans-serif", fontSize: '0.7rem', letterSpacing: '0.1em', cursor: 'pointer', boxShadow: '0 0 20px rgba(107,140,174,0.1)' }}>♠ PRACTICE</button>
-              </div>
-            </div>}
+          {/* Center — Play vs Stockfish board */}
+          <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-8">
+            <PlayVsEngine
+              key={playerColor || 'w'}
+              playerColor={playerColor || 'w'}
+              boardTheme={boardBg}
+              embedded
+            />
           </main>
 
           {/* Sidebar */}
@@ -611,24 +449,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                     <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '0.1em', textAlign: 'center' }}>BLACK</div>
                     <div style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.65rem', marginTop: 4, textAlign: 'center' }}>{OPENINGS.filter(o => o.tags.includes('Black')).length} openings available</div>
                   </div>
-                </button>
-                {/* Play vs Stockfish */}
-                <div style={{ color: 'rgba(150,142,130,0.35)', fontSize: '0.6rem', fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.15em', textAlign: 'center', width: '100%' }}>— OR —</div>
-                <button onClick={() => setPlayVsEngine('w')} className="w-full rounded-xl p-3.5 flex items-center gap-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '1.5rem' }}>⚔</span>
-                  <div className="text-left flex-1">
-                    <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.08em' }}>PLAY AS WHITE</div>
-                    <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.6rem', marginTop: 2 }}>vs Stockfish engine</div>
-                  </div>
-                  <span style={{ fontSize: '1.2rem', color: '#6b8cae' }}>♔</span>
-                </button>
-                <button onClick={() => setPlayVsEngine('b')} className="w-full rounded-xl p-3.5 flex items-center gap-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.15), rgba(168,131,74,0.08))', border: '1px solid rgba(107,140,174,0.25)', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '1.5rem' }}>⚔</span>
-                  <div className="text-left flex-1">
-                    <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#b8b2a8', fontWeight: 600, fontSize: '0.75rem', letterSpacing: '0.08em' }}>PLAY AS BLACK</div>
-                    <div style={{ color: 'rgba(160,152,138,0.5)', fontSize: '0.6rem', marginTop: 2 }}>vs Stockfish engine</div>
-                  </div>
-                  <span style={{ fontSize: '1.2rem', color: '#6b8cae' }}>♚</span>
                 </button>
               </div>
             )}
