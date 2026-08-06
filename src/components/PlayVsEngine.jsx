@@ -191,11 +191,6 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit, embedded
   if (embedded) {
     return (
       <div className="flex flex-col items-center gap-3 w-full">
-        {/* Status line */}
-        <div className="w-full rounded-xl px-3 py-2 text-center" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.14)' }}>
-          <span className="text-xs font-medium" style={{ color: gameStatus !== 'playing' ? '#8daac4' : '#cbd5e1' }}>{statusMessage}</span>
-        </div>
-
         {/* Board */}
         <div className="relative">
           <div className="relative rounded-lg overflow-hidden p-1.5 md:p-3" style={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(110,125,148,0.16)', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
