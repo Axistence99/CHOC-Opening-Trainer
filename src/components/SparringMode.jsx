@@ -229,7 +229,7 @@ export default function SparringMode({ repertoire, boardTheme, onExit }) {
   }), [fen, orientation, turnColor, lastMove, dests, playerCanMove, handleUserMove, deviationArrows]);
 
   const boardBg = typeof boardTheme === 'object' && boardTheme !== null ? boardTheme : { light: '#c8d9e8', dark: '#2d4a6e' };
-  const boardSize = 'min(calc(100vw - 40px), 520px)';
+  const boardSize = 'min(calc(100vw - 40px), calc(100vh - 200px), 500px)';
 
   // Format move history
   const formattedMoves = [];

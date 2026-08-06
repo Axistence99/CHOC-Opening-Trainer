@@ -483,9 +483,9 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             onSave={handleEditorSave}
           />
         ) : (
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-y-auto overflow-x-hidden min-h-0">
           {/* Center — Play vs Stockfish board */}
-          <main className="flex-1 flex flex-col items-center justify-center p-2 md:p-8">
+          <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 md:p-4 my-auto">
             <PlayVsEngine
               key={engineColor}
               playerColor={engineColor}

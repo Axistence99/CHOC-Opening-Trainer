@@ -586,7 +586,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const studyProgress = studyPath.length > 1 ? (studyStep / (studyPath.length - 1)) * 100 : 0;
   const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
   const openingName = currentPath.length > 0 ? getOpeningFromMoves(currentPath) : 'Starting Position';
-  const boardSize = 'min(calc(100vw - 40px), 560px)';
+  const boardSize = 'min(calc(100vw - 40px), calc(100vh - 220px), 540px)';
 
   // Mode button helper
   const modeBtn = (m) => ({

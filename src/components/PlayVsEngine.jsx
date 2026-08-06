@@ -165,7 +165,9 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit, embedded
   }), [fen, orientation, turnColor, lastMove, dests, playerCanMove, handleUserMove]);
 
   const boardColors = boardTheme || { light: '#c8d9e8', dark: '#2d4a6e' };
-  const boardSize = 'min(calc(100vw - 40px), 520px)';
+  const boardSize = embedded
+    ? 'min(calc(100vw - 40px), calc(100vh - 230px), 480px)'
+    : 'min(calc(100vw - 40px), calc(100vh - 180px), 520px)';
 
   // Format move history with move numbers
   const formattedMoves = [];
