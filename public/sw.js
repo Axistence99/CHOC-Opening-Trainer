@@ -1,8 +1,12 @@
 /* CHOC Opening Trainer — Service Worker
- * Cache-first runtime caching. The app becomes fully usable offline
- * after the user has visited once (app shell + Stockfish engine cached).
+ *
+ * Strategy: NETWORK-FIRST for same-origin requests, falling back to cache when
+ * offline. This ensures users always get the latest deployed build (hashed JS
+ * changes on every deploy), instead of being stuck on a stale cached version.
+ * The app shell and Stockfish engine are still cached so the app works offline
+ * after the first visit.
  */
-const CACHE_VERSION = 'choc-v2';
+const CACHE_VERSION = 'choc-v3';
 const PRECACHE = [
   './',
   './index.html',
@@ -23,9 +27,8 @@ self.addEventListener('install', (event) => {
     caches
       .open(CACHE_VERSION)
       .then((cache) => cache.addAll(PRECACHE))
+      .catch(() => {}) // don't block install on an optional precache failure
       .then(() => self.skipWaiting())
-      // Ignore individual failures (e.g. optional asset) — don't block install
-      .catch(() => self.skipWaiting())
   );
 });
 
@@ -50,27 +53,47 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (request.method !== 'GET') return;
 
-  // Cache-first with network fallback
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
+  const url = new URL(request.url);
+  const isSameOrigin = url.origin === self.location.origin;
 
-      return fetch(request)
-        .then((response) => {
-          // Only cache successful same-origin responses
-          if (response && response.ok && new URL(request.url).origin === self.location.origin) {
-            const clone = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => {
-          // Network failed and not cached — return offline fallback for navigation
-          if (request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
+  // Cross-origin (e.g. Lichess piece CDN): cache-first, but let network win.
+  if (!isSameOrigin) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request)
+            .then((res) => {
+              if (res && res.ok) {
+                const clone = res.clone();
+                caches.open(CACHE_VERSION).then((c) => c.put(request, clone));
+              }
+              return res;
+            })
+            .catch(() => cached)
+      )
+    );
+    return;
+  }
+
+  // Same-origin: NETWORK-FIRST. Try the network; on failure fall back to cache.
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        // Cache a successful copy for offline use.
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(request).then((cached) => {
+          // Navigation fallback to the app shell for offline SPA reloads.
+          if (cached) return cached;
+          if (request.mode === 'navigate') return caches.match('./index.html');
           return new Response('Offline', { status: 503, statusText: 'Offline' });
-        });
-    })
+        })
+      )
   );
 });
