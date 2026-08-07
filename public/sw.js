@@ -6,7 +6,7 @@
  * The app shell and Stockfish engine are still cached so the app works offline
  * after the first visit.
  */
-const CACHE_VERSION = 'choc-v3';
+const CACHE_VERSION = 'choc-v4-20260807';
 const PRECACHE = [
   './',
   './index.html',

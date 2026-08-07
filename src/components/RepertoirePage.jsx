@@ -529,6 +529,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     startTrainLine(activeTrainLines, lineIndex, tree);
   }, [activeTrainLines, lineIndex, tree, startTrainLine]);
 
+  const clearVisualOverlays = useCallback(() => {
+    setWrongSquare(null);
+    setMoveGlyph(null);
+    setHintShapes([]);
+    setHintStage(0);
+  }, []);
+
   // ─── PROGRESSIVE HINTS ───
   // Stage 1 = source square glows; Stage 2 = full arrow. Hint downgrades the rating to Hard.
   const handleShowHint = useCallback(() => {

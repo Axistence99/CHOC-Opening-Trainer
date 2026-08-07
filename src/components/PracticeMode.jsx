@@ -254,8 +254,6 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
   }, [mode, studyForward, studyBack, studyReset, studyEnd]);
 
   const openingName = currentPath.length > 0 ? getOpeningFromMoves(currentPath) : 'Starting Position';
-  if (!repertoire) return <div className="text-center py-12" style={{ color: 'rgba(160,152,138,0.4)' }}><p>Select a repertoire to practice</p></div>;
-
   const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
   const isUserTurn = mode === 'training' && status === STATUS.USER_TURN;
   const isComplete = status === STATUS.LINE_COMPLETE;
@@ -323,6 +321,8 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
     cursor: 'pointer',
     transition: 'all 0.2s',
   });
+
+  if (!repertoire) return <div className="text-center py-12" style={{ color: 'rgba(160,152,138,0.4)' }}><p>Select a repertoire to practice</p></div>;
 
   return (
     <div ref={containerRef} className="space-y-3 md:space-y-4">

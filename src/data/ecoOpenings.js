@@ -11,7 +11,7 @@ const ECO_OPENINGS = {
   // After 1.e4 e5
   'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6': 'King\'s Pawn Game',
   // After 1.e4 c5
-  'rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6': 'Sicilian Defense',
+  'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6': 'Sicilian Defense',
   // After 1.e4 e6
   'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq': 'French Defense',
   // After 1.e4 c6
