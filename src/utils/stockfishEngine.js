@@ -14,7 +14,11 @@ function getStockfishWorkerURL() {
   // document.baseURI accounts for <base> tags and works in subdirectories
   const base = document.baseURI || window.location.href;
   const baseUrl = base.endsWith('/') ? base : base.substring(0, base.lastIndexOf('/') + 1);
-  return baseUrl + 'engine/stockfish.wasm.js';
+  try {
+    return new URL('engine/stockfish.wasm.js', baseUrl).href;
+  } catch {
+    return baseUrl + 'engine/stockfish.wasm.js';
+  }
 }
 
 export default class StockfishEngine {

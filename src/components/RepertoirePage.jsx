@@ -327,36 +327,24 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setTrainMessage('All lines completed!');
       return;
     }
-    const line = lines[idx];
-    const isUserWhite = !repertoire.color || repertoire.color.toLowerCase() === 'white';
-    chess.reset();
+    let node = rootNode || tree;
+    const startFen = node?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    chess.load(startFen);
     setPosition(chess.fen());
     setCurrentPath([]);
     setLastMove(null);
     setWrongSquare(null);
     setTrainMessage(`Line ${idx + 1} of ${lines.length}`);
 
-    let node = rootNode || tree;
-    // If user plays black, computer (white) makes the first move
-    if (!isUserWhite) {
-      const firstMove = line[0];
-      if (firstMove) {
-        const move = chess.move(firstMove.san);
-        if (move) {
-          setPosition(chess.fen());
-          setCurrentPath([firstMove.san]);
-          node = node.children.get(firstMove.san) || node;
-          setLastMove([move.from, move.to]);
-        }
-      }
-    }
     setCurrentNode(node);
     const expected = new Map();
     for (const [san, child] of node.children.entries()) expected.set(san, child);
     setExpectedMoves(expected);
 
+    const isUserWhite = !repertoire.color || repertoire.color.toLowerCase() === 'white';
     const turnIsWhite = chess.turn() === 'w';
     const isUserTurn = (isUserWhite && turnIsWhite) || (!isUserWhite && !turnIsWhite);
+
     if (isUserTurn) {
       setTrainStatus('user_turn');
       setTrainMessage('Your turn — play the correct move');
@@ -381,6 +369,9 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
           setTrainStatus('complete');
           setTrainMessage('✅ Line complete!');
         }
+      } else {
+        setTrainStatus('complete');
+        setTrainMessage('✅ Line complete!');
       }
     } else {
       setTrainStatus('complete');
@@ -454,6 +445,9 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
               setTrainStatus('complete');
               setTrainMessage('✅ Line complete!');
             }
+          } else {
+            setTrainStatus('complete');
+            setTrainMessage('✅ Line complete!');
           }
         }, 300);
       }
