@@ -500,7 +500,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
         ) : (
         <div className="flex flex-col md:flex-row flex-1 overflow-y-auto overflow-x-hidden min-h-0">
           {/* Sidebar (Top on mobile, Right on desktop) */}
-          <aside className="w-full md:w-80 lg:w-96 flex flex-col order-1 md:order-2 border-b md:border-b-0 md:border-l shrink-0" style={{ background: 'rgba(6,8,16,0.97)', borderColor: 'rgba(107,140,174,0.12)', zIndex: 10 }}>
+          <aside className="w-full md:w-80 lg:w-96 flex flex-col order-1 md:order-2 border-b md:border-b-0 md:border-l shrink-0 pb-10 md:pb-0" style={{ background: 'rgba(6,8,16,0.97)', borderColor: 'rgba(107,140,174,0.12)', zIndex: 10 }}>
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.1)' }}>
               <div>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.15em' }}>{playerColor ? 'REPERTOIRES' : 'CHOOSE COLOR'}</div>
@@ -580,8 +580,21 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             </div>
           </aside>
 
-          {/* Center — Play vs Stockfish board (Second on mobile when scrolling down, Left/Center on desktop) */}
-          <main className="w-full md:flex-1 min-h-0 flex flex-col items-center justify-center p-4 md:p-6 my-auto order-2 md:order-1">
+          {/* Mobile separator & spacing between Choosing Repertoires and Play vs Stockfish board */}
+          <div className="w-full flex flex-col items-center justify-center py-10 my-4 md:hidden order-2 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)' }}>
+            <div className="w-20 h-1 rounded-full mb-6" style={{ background: 'linear-gradient(90deg, rgba(107,140,174,0.1), rgba(107,140,174,0.6), rgba(107,140,174,0.1))' }} />
+            <div className="flex items-center gap-2" style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '0.75rem', fontWeight: 700, color: '#8daac4', letterSpacing: '0.15em' }}>
+              <span>⚔</span>
+              <span>PLAY VS STOCKFISH</span>
+              <span>⚔</span>
+            </div>
+            <p className="text-[11px] mt-1.5 text-center px-4" style={{ color: 'rgba(150,142,130,0.5)' }}>
+              Scroll down to play or spar against Stockfish
+            </p>
+          </div>
+
+          {/* Center — Play vs Stockfish board (Below on mobile when scrolling down, Left/Center on desktop) */}
+          <main className="w-full md:flex-1 min-h-0 flex flex-col items-center justify-center pt-8 pb-16 md:p-6 my-auto order-3 md:order-1">
             <PlayVsEngine
               key={engineColor}
               playerColor={engineColor}
