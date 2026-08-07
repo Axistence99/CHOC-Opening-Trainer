@@ -112,7 +112,7 @@ const SAN_RE =
  * Strip PGN headers, comments, and split the move text into individual games
  * (segments delimited by result markers like "*", "1-0", "0-1", "1/2-1/2").
  */
-function extractGameSegments(pgn) {
+export function extractGameSegments(pgn) {
   const rawText = String(pgn || '').trim();
   if (!rawText) return [];
 
@@ -149,10 +149,13 @@ function extractGameSegments(pgn) {
   for (const block of blocks) {
     let chapterName = null;
     let fen = null;
+    const chapterMatch = block.match(/\[ChapterName\s+"([^"]+)"\]/i);
     const eventMatch = block.match(/\[Event\s+"([^"]+)"\]/i);
     const openingMatch = block.match(/\[Opening\s+"([^"]+)"\]/i);
     const fenMatch = block.match(/\[FEN\s+"([^"]+)"\]/i);
-    if (eventMatch && eventMatch[1] && eventMatch[1] !== '?' && eventMatch[1] !== '*') {
+    if (chapterMatch && chapterMatch[1] && chapterMatch[1] !== '?' && chapterMatch[1] !== '*') {
+      chapterName = chapterMatch[1];
+    } else if (eventMatch && eventMatch[1] && eventMatch[1] !== '?' && eventMatch[1] !== '*') {
       chapterName = eventMatch[1];
     } else if (openingMatch && openingMatch[1] && openingMatch[1] !== '?' && openingMatch[1] !== '*') {
       chapterName = openingMatch[1];
@@ -208,6 +211,17 @@ function tokenizePGN(gameSegment) {
   return tokens;
 }
 
+function findNodeByFen(node, targetFen) {
+  if (!node || !targetFen) return null;
+  const tKey = targetFen.split(' ').slice(0, 4).join(' ');
+  if (node.fen && node.fen.split(' ').slice(0, 4).join(' ') === tKey) return node;
+  for (const child of node.children.values()) {
+    const found = findNodeByFen(child, targetFen);
+    if (found) return found;
+  }
+  return null;
+}
+
 /**
  * Parse PGN into a tree structure suitable for training
  * Each node represents a position and its children are possible next moves
@@ -230,8 +244,30 @@ export function parsePGNToTree(pgn) {
     const tokens = tokenizePGN(game.text || game);
     if (tokens.length === 0) continue;
 
-    const stack = [{ node: root, chess: new Chess() }];
-    let parent = { node: root, fen: root.fen };
+    let startNode = root;
+    let startFen = root.fen;
+    if (game.fen) {
+      try {
+        const testChess = new Chess(game.fen);
+        const tFen = testChess.fen();
+        const existing = findNodeByFen(root, tFen);
+        if (existing) {
+          startNode = existing;
+          startFen = tFen;
+        } else if (root.children.size === 0) {
+          root.fen = tFen;
+          startNode = root;
+          startFen = tFen;
+        } else {
+          startFen = tFen;
+        }
+      } catch (e) {
+        startFen = root.fen;
+      }
+    }
+
+    const stack = [{ node: startNode, chess: new Chess(startFen) }];
+    let parent = { node: startNode, fen: startFen };
 
     for (const tok of tokens) {
       if (tok === '(') {

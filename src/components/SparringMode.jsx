@@ -102,7 +102,8 @@ export default function SparringMode({ repertoire, boardTheme, onExit }) {
       if (bookMoves.size > 0 && Math.random() < 0.3) {
         const bookSans = Array.from(bookMoves.keys());
         const chosen = bookSans[Math.floor(Math.random() * bookSans.length)];
-        const m = chess.move(chosen);
+        const testChess = new Chess(chess.fen());
+        const m = testChess.move(chosen);
         if (m) {
           bestUci = m.from + m.to + (m.promotion || '');
         }
