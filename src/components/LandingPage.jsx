@@ -333,17 +333,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       ? PREBUILT_REPERTOIRES.find((p) => p.id === mappedId)
       : null;
 
-    if (target.pgn && target.isCustom) {
-      try {
-        const tree = parsePGNToTree(target.pgn);
-        onSelectRepertoire({ ...target, tree });
-      } catch (e) {
-        console.error(e);
-        onSelectRepertoire(target);
-      }
-      return;
-    }
-
     if (matching) {
       const repertoires = getRepertoires();
       if (!repertoires.some((r) => r.id === matching.id)) {
@@ -359,6 +348,17 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       } catch (e) {
         console.error(e);
         onSelectRepertoire(matching);
+      }
+      return;
+    }
+
+    if (target.pgn && target.isCustom) {
+      try {
+        const tree = parsePGNToTree(target.pgn);
+        onSelectRepertoire({ ...target, tree });
+      } catch (e) {
+        console.error(e);
+        onSelectRepertoire(target);
       }
       return;
     }

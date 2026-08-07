@@ -1,7 +1,8 @@
 // Local storage utilities for persisting repertoire data and progress
 // Uses FSRS (Free Spaced Repetition Scheduler) — the same algorithm as Anki 23.10+
 
-import { fsrs, createEmptyCard, Rating } from 'ts-fsrs';
+import { fsrs, createEmptyCard } from 'ts-fsrs';
+import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires';
 
 const STORAGE_KEYS = {
   REPERTOIRES: 'chess-trainer-repertoires',
@@ -18,7 +19,26 @@ const f = fsrs();
 export function getRepertoires() {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.REPERTOIRES);
-    return data ? JSON.parse(data) : [];
+    const list = data ? JSON.parse(data) : [];
+    return list.map(rep => {
+      const prebuilt = PREBUILT_REPERTOIRES.find(p =>
+        p.id === rep.id ||
+        `opening-${p.id}` === rep.id ||
+        (p.name && rep.name && p.name.toLowerCase() === rep.name.toLowerCase())
+      );
+      if (prebuilt) {
+        return {
+          ...rep,
+          id: prebuilt.id,
+          name: prebuilt.name,
+          color: prebuilt.color,
+          description: prebuilt.description,
+          pgn: prebuilt.pgn,
+          isPrebuilt: true,
+        };
+      }
+      return rep;
+    });
   } catch {
     return [];
   }
