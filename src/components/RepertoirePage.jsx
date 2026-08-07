@@ -472,7 +472,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       // Move quality glyph: ! for a clean first-try, !? if a hint was used
       setMoveGlyph(hintStage > 0 ? { square: dest, glyph: '!?', tone: 'amber' } : { square: dest, glyph: '!', tone: 'good' });
       setTimeout(() => setMoveGlyph(null), 1200);
-      updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 5);
+      updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 4);
       setHintShapes([]);
       setHintStage(0);
       handleSessionProgress();

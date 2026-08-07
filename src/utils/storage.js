@@ -2,7 +2,7 @@
 // Uses FSRS (Free Spaced Repetition Scheduler) — the same algorithm as Anki 23.10+
 
 import { fsrs, createEmptyCard } from 'ts-fsrs';
-import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires';
+import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires.js';
 
 const STORAGE_KEYS = {
   REPERTOIRES: 'chess-trainer-repertoires',
@@ -138,26 +138,31 @@ export function getOrCreateCard(positionKey) {
  * @returns {object} Updated history
  */
 export function updatePracticeEntry(positionKey, rating) {
-  const history = getPracticeHistory();
-  const card = (history[positionKey] && history[positionKey].card) || createEmptyCard();
-  const now = new Date();
+  try {
+    const history = getPracticeHistory();
+    const card = (history[positionKey] && history[positionKey].card) || createEmptyCard();
+    const now = new Date();
 
-  // FSRS scheduling
-  const scheduling = f.repeat(card, now);
-  const grade = rating; // Rating.Again=1, Rating.Hard=2, Rating.Good=3, Rating.Easy=4
+    // FSRS scheduling requires grades 1 (Again), 2 (Hard), 3 (Good), 4 (Easy)
+    const grade = Math.max(1, Math.min(4, Number(rating) || 3));
+    const scheduling = f.repeat(card, now);
 
-  // Get the next card state for this rating
-  const nextCard = scheduling[grade].card;
+    // Get the next card state for this rating
+    const nextCard = scheduling[grade] ? scheduling[grade].card : card;
 
-  history[positionKey] = {
-    card: nextCard,
-    lastRating: grade,
-    lastPracticed: now.getTime(),
-    nextReview: nextCard.due ? new Date(nextCard.due).getTime() : now.getTime(),
-  };
+    history[positionKey] = {
+      card: nextCard,
+      lastRating: grade,
+      lastPracticed: now.getTime(),
+      nextReview: nextCard.due ? new Date(nextCard.due).getTime() : now.getTime(),
+    };
 
-  savePracticeHistory(history);
-  return history;
+    savePracticeHistory(history);
+    return history;
+  } catch (e) {
+    console.warn('updatePracticeEntry error:', e);
+    return getPracticeHistory();
+  }
 }
 
 /**

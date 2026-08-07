@@ -205,7 +205,7 @@ export default function PracticeMode({ repertoire, onExit, boardTheme, onBoardTh
       setPosition(chess.fen()); setCurrentPath(prev => [...prev, san]); setLastMove([orig, dest]);
       const nextNode = expectedMoves.get(san); setCurrentNode(nextNode); setStatus(STATUS.CORRECT);
       setStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
-      updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 5);
+      updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 4);
       const newExpected = new Map(); for (const [s, child] of nextNode.children.entries()) newExpected.set(s, child); setExpectedMoves(newExpected);
       if (newExpected.size === 0) { setStatus(STATUS.LINE_COMPLETE); setMessage('✅ Line complete!'); return; }
       const isUW = repertoire.color === 'white'; const tw = chess.turn() === 'w'; const iu = (isUW && tw) || (!isUW && !tw);
