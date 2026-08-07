@@ -663,10 +663,10 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                 <button
                   onClick={handleDeleteRepertoire}
                   title="Delete Repertoire"
-                  className="px-2 py-1 text-xs rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-1 font-orbitron"
-                  style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer' }}
+                  className="px-2.5 py-1 text-xs rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-1 font-orbitron font-semibold"
+                  style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer', letterSpacing: '0.05em' }}
                 >
-                  🗑
+                  🗑 DELETE
                 </button>
               )}
             </div>
@@ -1006,6 +1006,15 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                         ⬇ Export PGN
                       </button>
                     </div>
+                    {repertoire.isCustom && (
+                      <button
+                        onClick={handleDeleteRepertoire}
+                        className="w-full px-4 py-2 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold mt-2"
+                        style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer', letterSpacing: '0.08em' }}
+                      >
+                        🗑 Delete Repertoire
+                      </button>
+                    )}
                   </div>
 
                   {/* Repertoire info */}
