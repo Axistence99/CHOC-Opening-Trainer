@@ -165,7 +165,6 @@ export function extractGameSegments(pgn) {
     }
     const cleaned = block
       .replace(/\[[^\]]*\]/g, ' ')
-      .replace(/\{[^}]*\}/g, ' ')
       .replace(/;[^\n]*/g, ' ')
       .replace(/\$\d+/g, ' ')
       .replace(/\b(?:1-0|0-1|1\/2-1\/2|½-½)\b|\*/g, ' ')
@@ -192,6 +191,11 @@ export function extractGameSegments(pgn) {
  */
 export function tokenizePGN(gameSegment) {
   let text = String(gameSegment || '').trim();
+  const comments = [];
+  text = text.replace(/\{([^}]*)\}/g, (_, c) => {
+    comments.push(c.trim());
+    return ` __COMMENT_${comments.length - 1}__ `;
+  });
   text = text.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ');
   const rawTokens = text.split(/\s+/);
   const tokens = [];
@@ -199,6 +203,13 @@ export function tokenizePGN(gameSegment) {
     if (!tok) continue;
     if (tok === '(' || tok === ')') {
       tokens.push(tok);
+      continue;
+    }
+    if (tok.startsWith('__COMMENT_') && tok.endsWith('__')) {
+      const idx = parseInt(tok.replace('__COMMENT_', '').replace('__', ''), 10);
+      if (!isNaN(idx) && comments[idx]) {
+        tokens.push({ comment: comments[idx] });
+      }
       continue;
     }
     tok = tok.replace(/^\d+\.\.\./, '').replace(/^\d+\./, '');
@@ -279,6 +290,12 @@ export function parsePGNToTree(pgn) {
       } else if (tok === ')') {
         if (stack.length > 1) {
           stack.pop();
+        }
+        continue;
+      } else if (typeof tok === 'object' && tok.comment) {
+        const current = stack[stack.length - 1];
+        if (current && current.node) {
+          current.node.comment = tok.comment;
         }
         continue;
       }

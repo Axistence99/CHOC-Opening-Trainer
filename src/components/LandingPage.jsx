@@ -191,7 +191,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const [engineColor, setEngineColor] = useState('w');
   const [selectedOpening, setSelectedOpening] = useState(() => loadAllOpenings()[0]);
   const [moveIndex, setMoveIndex] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [currentBoardTheme, setCurrentBoardTheme] = useState(boardTheme || 'space');
@@ -425,9 +424,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             </div>
             <button onClick={() => setEditorOpen(true)} title="Create Opening Repertoire" className="flex items-center justify-center gap-1.5 px-3 md:px-4 h-9 rounded-lg transition-all hover:scale-105 text-xs font-orbitron font-semibold" style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.35)', color: '#ddd8cc', letterSpacing: '0.06em', cursor: 'pointer' }}>＋ CREATE OPENING REPERTOIRE</button>
             <button onClick={() => setSettingsOpen(v => !v)} title="Board Settings" className="flex items-center justify-center w-9 h-9 rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: settingsOpen ? 'rgba(107,140,174,0.18)' : 'rgba(107,140,174,0.07)', border: `1px solid ${settingsOpen ? 'rgba(107,140,174,0.35)' : 'rgba(107,140,174,0.14)'}`, color: settingsOpen ? '#8daac4' : '#475569', fontSize: '1rem', cursor: 'pointer' }}>⚙</button>
-            <button className="md:hidden flex flex-col gap-1 p-2" onClick={() => setSidebarOpen(v => !v)} aria-label="Toggle repertoires">
-              {[0,1,2].map(i => <div key={i} className="w-5 h-0.5 rounded" style={{ background: '#8daac4' }} />)}
-            </button>
           </div>
         </header>
 
@@ -502,26 +498,14 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             onSave={handleEditorSave}
           />
         ) : (
-        <div className="flex flex-1 overflow-y-auto overflow-x-hidden min-h-0">
-          {/* Center — Play vs Stockfish board */}
-          <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 md:p-4 my-auto">
-            <PlayVsEngine
-              key={engineColor}
-              playerColor={engineColor}
-              boardTheme={boardBg}
-              embedded
-              onColorChange={setEngineColor}
-            />
-          </main>
-
-          {/* Sidebar */}
-          <aside className={`fixed md:relative inset-y-0 right-0 md:inset-auto w-[280px] md:w-80 lg:w-96 flex flex-col transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`} style={{ background: 'rgba(6,8,16,0.97)', borderLeft: '1px solid rgba(107,140,174,0.12)', zIndex: 50 }}>
+        <div className="flex flex-col md:flex-row flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+          {/* Sidebar (Top on mobile, Right on desktop) */}
+          <aside className="w-full md:w-80 lg:w-96 flex flex-col order-1 md:order-2 border-b md:border-b-0 md:border-l shrink-0" style={{ background: 'rgba(6,8,16,0.97)', borderColor: 'rgba(107,140,174,0.12)', zIndex: 10 }}>
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(107,140,174,0.1)' }}>
               <div>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#ddd8cc', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.15em' }}>{playerColor ? 'REPERTOIRES' : 'CHOOSE COLOR'}</div>
                 <div style={{ color: 'rgba(150,142,130,0.5)', fontSize: '0.6rem', marginTop: 2 }}>{playerColor ? `Playing as ${playerColor === 'w' ? 'White' : 'Black'} · ${filteredOpenings.length} openings` : 'Select your side to see openings'}</div>
               </div>
-              <button className="md:hidden p-1.5" onClick={() => setSidebarOpen(false)} style={{ color: '#7a746a' }}>✕</button>
             </div>
 
             {!playerColor && (
@@ -595,14 +579,19 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
               </div>
             </div>
           </aside>
+
+          {/* Center — Play vs Stockfish board (Second on mobile when scrolling down, Left/Center on desktop) */}
+          <main className="w-full md:flex-1 min-h-0 flex flex-col items-center justify-center p-4 md:p-6 my-auto order-2 md:order-1">
+            <PlayVsEngine
+              key={engineColor}
+              playerColor={engineColor}
+              boardTheme={boardBg}
+              embedded
+              onColorChange={setEngineColor}
+            />
+          </main>
         </div>
         )}
-
-      {/* Mobile sidebar backdrop — inside the zIndex:1 wrapper so it stays BELOW
-          the drawer (aside zIndex:50) but ABOVE the board/content. */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 md:hidden" style={{ background: 'rgba(0,0,0,0.7)', zIndex: 30 }} onClick={() => setSidebarOpen(false)} />
-      )}
       </div>
 
       {/* Footer — License & Credits */}

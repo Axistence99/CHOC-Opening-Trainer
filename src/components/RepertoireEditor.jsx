@@ -73,6 +73,11 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
 
   return (
     <span className="inline">
+      {isRoot && node.comment && (
+        <span className="block text-[11px] italic my-1 p-2 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)', borderLeft: '2px solid #6b8cae' }}>
+          {node.comment}
+        </span>
+      )}
       {prefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{prefix}</span>}
       <span
         onClick={() => onSelectNode && onSelectNode(mainPath, mainChild)}
@@ -90,6 +95,12 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
             }, 500);
           }
         }}
+        onTouchMove={(e) => {
+          if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
+        }}
+        onTouchCancel={(e) => {
+          if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
+        }}
         onTouchEnd={(e) => {
           if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
         }}
@@ -103,7 +114,13 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
         }}
       >
         {mainSan}
-      </span>{' '}
+      </span>
+      {mainChild.comment && (
+        <span className="inline-block text-[11px] italic mx-1 px-1.5 py-0.5 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)' }}>
+          {mainChild.comment}
+        </span>
+      )}
+      {' '}
       <PGNTreeView node={mainChild} currentPath={currentPath} pathSoFar={mainPath} onSelectNode={onSelectNode} onContextMenuMove={onContextMenuMove} isRoot={false} />
       {entries.slice(1).map(([varSan, varChild]) => {
         const varPath = [...pathSoFar, varSan];
@@ -131,6 +148,12 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
                   }, 500);
                 }
               }}
+              onTouchMove={(e) => {
+                if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
+              }}
+              onTouchCancel={(e) => {
+                if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
+              }}
               onTouchEnd={(e) => {
                 if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
               }}
@@ -144,7 +167,13 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
               }}
             >
               {varSan}
-            </span>{' '}
+            </span>
+            {varChild.comment && (
+              <span className="inline-block text-[11px] italic mx-1 px-1.5 py-0.5 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)' }}>
+                {varChild.comment}
+              </span>
+            )}
+            {' '}
             <PGNTreeView node={varChild} currentPath={currentPath} pathSoFar={varPath} onSelectNode={onSelectNode} onContextMenuMove={onContextMenuMove} isRoot={false} />
             <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>)</span>{' '}
           </span>
@@ -407,8 +436,10 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
                   node={tree}
                   currentPath={path}
                   onSelectNode={(p) => goTo(p)}
-                  onContextMenuMove={(e, p, san) => {
-                    setDeleteMenu({ x: e.clientX || 100, y: e.clientY || 100, path: p, san });
+                  onContextMenuMove={(e, p, san, touchX, touchY) => {
+                    const x = touchX || e.clientX || 100;
+                    const y = touchY || e.clientY || 100;
+                    setDeleteMenu({ x, y, path: p, san });
                   }}
                 />
               </div>
@@ -417,23 +448,25 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
 
           {/* Right-click delete pop-up menu */}
           {deleteMenu && (
-            <div
-              className="fixed z-50 rounded-xl py-2 px-3 shadow-2xl font-orbitron text-xs flex items-center gap-2"
-              style={{
-                top: Math.min(deleteMenu.y, window.innerHeight - 60),
-                left: Math.min(deleteMenu.x, window.innerWidth - 220),
-                background: 'rgba(10,13,28,0.98)',
-                border: '1px solid rgba(255,107,107,0.5)',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.8)',
-              }}
-            >
-              <button
-                onClick={() => {
-                  handleDeletePath(deleteMenu.path);
-                  setDeleteMenu(null);
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setDeleteMenu(null)} />
+              <div
+                className="fixed z-50 rounded-xl py-2 px-3 shadow-2xl font-orbitron text-xs flex items-center gap-2"
+                style={{
+                  top: Math.min(deleteMenu.y, window.innerHeight - 60),
+                  left: Math.min(deleteMenu.x, window.innerWidth - 220),
+                  background: 'rgba(10,13,28,0.98)',
+                  border: '1px solid rgba(255,107,107,0.5)',
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.8)',
                 }}
-                className="text-red-400 hover:text-red-300 font-semibold flex items-center gap-1.5 cursor-pointer"
               >
+                <button
+                  onClick={() => {
+                    handleDeletePath(deleteMenu.path);
+                    setDeleteMenu(null);
+                  }}
+                  className="text-red-400 hover:text-red-300 font-semibold flex items-center gap-1.5 cursor-pointer"
+                >
                 <span>🗑</span> Delete "{deleteMenu.san}" (from here)
               </button>
               <button
@@ -443,6 +476,7 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
                 ✕
               </button>
             </div>
+            </>
           )}
 
           {/* Save */}

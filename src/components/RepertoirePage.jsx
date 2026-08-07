@@ -122,6 +122,11 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, isRoot =
 
   return (
     <span className="inline">
+      {isRoot && node.comment && (
+        <span className="block text-[11px] italic my-1 p-2 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)', borderLeft: '2px solid #6b8cae' }}>
+          {node.comment}
+        </span>
+      )}
       {entries.map(([san, child], i) => {
         const path = [...pathSoFar, san];
         const isCurrent = currentPath.join(' ') === path.join(' ');
@@ -147,7 +152,13 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, isRoot =
               }}
             >
               {san}
-            </span>{' '}
+            </span>
+            {child.comment && (
+              <span className="inline-block text-[11px] italic mx-1 px-1.5 py-0.5 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)' }}>
+                {child.comment}
+              </span>
+            )}
+            {' '}
             <PGNTreeView node={child} currentPath={currentPath} pathSoFar={path} onSelectNode={onSelectNode} isRoot={false} />
             {isVar && <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>)</span>}{' '}
           </span>
@@ -424,6 +435,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
       // Move quality glyph: ! for a clean first-try, !? if a hint was used
       setMoveGlyph(hintStage > 0 ? { square: dest, glyph: '!?', tone: 'amber' } : { square: dest, glyph: '!', tone: 'good' });
+      setTimeout(() => setMoveGlyph(null), 1200);
       updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 5);
       setHintShapes([]);
       setHintStage(0);
@@ -840,57 +852,45 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         <div className="flex flex-1 overflow-hidden">
           {/* Board area — pb-44 on mobile to clear the bottom panel */}
           <main className="flex-1 flex flex-col items-center justify-center p-2 pb-44 md:p-6 md:pb-6 gap-3">
+            {/* Status indicators (OUTSIDE the chessboard so they never cover any squares or pieces) */}
+            <div className="flex items-center justify-center gap-2 min-h-[32px] w-full">
+              {moveGlyph && !wrongSquare && (
+                <div
+                  className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-orbitron font-bold shadow-lg transition-all duration-200"
+                  style={{
+                    background: moveGlyph.tone === 'good' ? 'rgba(74, 222, 128, 0.18)' : 'rgba(251, 191, 36, 0.18)',
+                    border: `1px solid ${moveGlyph.tone === 'good' ? '#4ade80' : '#fbbf24'}`,
+                    color: moveGlyph.tone === 'good' ? '#4ade80' : '#fbbf24',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  <span className="text-sm">{moveGlyph.glyph}</span>
+                  <span>Correct Move!</span>
+                </div>
+              )}
+              {wrongSquare && (
+                <div
+                  className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-orbitron font-bold shadow-lg transition-all duration-200"
+                  style={{
+                    background: 'rgba(255, 107, 107, 0.18)',
+                    border: '1px solid #ff6b6b',
+                    color: '#ff6b6b',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  <span className="text-sm">✕</span>
+                  <span>Incorrect Move — Try Again</span>
+                </div>
+              )}
+            </div>
+
             {/* Board */}
             <div className="relative">
               <div className="relative rounded-lg overflow-hidden" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
                 <div style={{ width: boardSize }}>
                   <ChessgroundBoard config={cgConfig} boardTheme={boardBg} />
                 </div>
-                {/* Wrong move red X overlay */}
-                {wrongSquare && (
-                  <div className="absolute pointer-events-none" style={{
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    zIndex: 10,
-                  }}>
-                    <div style={{
-                      position: 'absolute',
-                      // Position X at the destination square
-                      // We overlay the whole board with a red tint + X
-                      inset: 0,
-                      background: 'rgba(255, 50, 50, 0.08)',
-                      transition: 'opacity 0.3s',
-                    }} />
-                  </div>
-                )}
               </div>
-              {/* Move quality glyph on landing square */}
-              {moveGlyph && !wrongSquare && (
-                <div className="absolute" style={{
-                  top: '8px', right: '8px', zIndex: 20,
-                  width: '32px', height: '32px',
-                  background: moveGlyph.tone === 'good' ? 'rgba(74, 222, 128, 0.9)' : moveGlyph.tone === 'bad' ? 'rgba(255, 107, 107, 0.9)' : 'rgba(168, 131, 74, 0.9)',
-                  borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: '0.9rem', fontWeight: 900, color: '#080b14',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-                  animation: 'fadeInScale 0.2s ease-out',
-                }}>{moveGlyph.glyph}</div>
-              )}
-              {/* Wrong move red X badge on the piece */}
-              {wrongSquare && (
-                <div className="absolute" style={{
-                  top: '8px', right: '8px', zIndex: 20,
-                  width: '32px', height: '32px',
-                  background: 'rgba(255, 60, 60, 0.9)',
-                  borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: '1rem', fontWeight: 900, color: '#fff',
-                  boxShadow: '0 2px 12px rgba(255,60,60,0.5)',
-                  animation: 'fadeInScale 0.2s ease-out',
-                }}>✕</div>
-              )}
             </div>
 
             {/* Board controls for Study mode */}
@@ -1018,50 +1018,23 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                       </select>
                     </div>
                   )}
-                  {/* Move notation list */}
+                  {/* Move notation list — Always show Whole PGN with annotations & variations */}
                   <div className="rounded-xl p-3" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
-                    <h3 className="font-orbitron font-semibold text-[10px] mb-2" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>MOVES</h3>
-                    {studyLineIdx === 'all' ? (
-                      <div className="leading-relaxed whitespace-normal font-mono text-xs p-1">
-                        <PGNTreeView
-                          node={tree}
-                          currentPath={currentPath}
-                          onSelectNode={(p, child) => {
-                            if (child && child.fen) {
-                              setPosition(child.fen);
-                              setLastMove(child.move?.from && child.move?.to ? [child.move.from, child.move.to] : null);
-                              setCurrentPath(p);
-                              setStudyNode(child);
-                            }
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-x-1 gap-y-0.5 font-mono text-xs leading-relaxed" style={{ color: 'rgba(160,152,138,0.7)' }}>
-                        {studyPath.slice(1).map((step, i) => {
-                          const isCurrent = i === studyStep - 1;
-                          const isPast = i < studyStep - 1;
-                          return (
-                            <span key={i} onClick={() => {
-                              setStudyStep(i + 1);
-                              setPosition(step.fen);
-                              setLastMove(step.from && step.to ? [step.from, step.to] : null);
-                              setCurrentPath(studyPath.slice(1, i + 2).map(s => s.san).filter(Boolean));
-                            }} className="cursor-pointer transition-colors hover:text-white" style={{
-                              color: isCurrent ? '#fff' : isPast ? '#8daac4' : 'rgba(160,152,138,0.4)',
-                              fontWeight: isCurrent ? 700 : 400,
-                              background: isCurrent ? 'rgba(107,140,174,0.15)' : 'transparent',
-                              padding: '1px 3px',
-                              borderRadius: 3,
-                            }}>
-                              {i % 2 === 0 && <span style={{ color: 'rgba(160,152,138,0.35)', marginRight: 2 }}>{Math.floor(i / 2) + 1}.</span>}
-                              {step.san}
-                            </span>
-                          );
-                        })}
-                        {studyPath.length <= 1 && <span className="italic" style={{ color: 'rgba(160,152,138,0.3)' }}>No moves</span>}
-                      </div>
-                    )}
+                    <h3 className="font-orbitron font-semibold text-[10px] mb-2" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>WHOLE PGN & ANNOTATIONS</h3>
+                    <div className="leading-relaxed whitespace-normal font-mono text-xs p-1">
+                      <PGNTreeView
+                        node={tree}
+                        currentPath={currentPath}
+                        onSelectNode={(p, child) => {
+                          if (child && child.fen) {
+                            setPosition(child.fen);
+                            setLastMove(child.move?.from && child.move?.to ? [child.move.from, child.move.to] : null);
+                            setCurrentPath(p);
+                            setStudyNode(child);
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
 
                   {studyLineIdx === 'all' && (
