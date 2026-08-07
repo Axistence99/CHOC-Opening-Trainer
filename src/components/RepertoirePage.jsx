@@ -418,6 +418,10 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       return;
     }
     let node = rootNode || tree;
+    if ((!node || !node.children || node.children.size === 0) && repertoire?.pgn) {
+      node = parsePGNToTree(repertoire.pgn);
+      setTree(node);
+    }
     const startFen = node?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     chess.load(startFen);
     setPosition(chess.fen());
