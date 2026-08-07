@@ -142,10 +142,19 @@ function enhanceConfig(config) {
     applyBoardColors();
   }, [boardTheme, boardPx, config?.orientation, applyBoardColors]);
 
+  const handleRefreshBounds = useCallback(() => {
+    if (cgRef.current && cgRef.current.state && cgRef.current.state.dom && cgRef.current.state.dom.bounds) {
+      cgRef.current.state.dom.bounds.clear();
+    }
+  }, []);
+
   return (
     <div
       ref={containerRef}
       className="cg-wrap"
+      onMouseDown={handleRefreshBounds}
+      onTouchStart={handleRefreshBounds}
+      onPointerDown={handleRefreshBounds}
       style={{
         width: boardPx > 0 ? `${boardPx}px` : '100%',
         height: boardPx > 0 ? `${boardPx}px` : undefined,
