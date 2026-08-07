@@ -163,6 +163,11 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, isRoot =
               }}
             >
               {san}
+              {child.glyph && (
+                <span className="font-bold ml-0.5" style={{ color: child.glyph.includes('?') ? '#ff8a8a' : '#4ade80' }}>
+                  {child.glyph}
+                </span>
+              )}
             </span>
             {child.comment && (
               <span className="inline-block text-[11px] italic mx-1 px-1.5 py-0.5 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)' }}>

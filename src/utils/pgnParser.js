@@ -166,7 +166,6 @@ export function extractGameSegments(pgn) {
     const cleaned = block
       .replace(/\[[^\]]*\]/g, ' ')
       .replace(/;[^\n]*/g, ' ')
-      .replace(/\$\d+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
     if (!cleaned) continue;
@@ -188,6 +187,15 @@ export function extractGameSegments(pgn) {
  * Tokenize a single game's move text into an array of SAN move strings
  * and variation brackets '(' and ')', skipping move numbers and result markers.
  */
+const NAG_MAP = {
+  '$1': '!',
+  '$2': '?',
+  '$3': '!!',
+  '$4': '??',
+  '$5': '!?',
+  '$6': '?!',
+};
+
 export function tokenizePGN(gameSegment) {
   let text = String(gameSegment || '').trim();
   const comments = [];
@@ -204,6 +212,14 @@ export function tokenizePGN(gameSegment) {
       tokens.push(tok);
       continue;
     }
+    if (NAG_MAP[tok]) {
+      tokens.push({ glyph: NAG_MAP[tok] });
+      continue;
+    }
+    if (/^[!?]+$/.test(tok)) {
+      tokens.push({ glyph: tok });
+      continue;
+    }
     if (tok.startsWith('__COMMENT_') && tok.endsWith('__')) {
       const idx = parseInt(tok.replace('__COMMENT_', '').replace('__', ''), 10);
       if (!isNaN(idx) && comments[idx]) {
@@ -213,9 +229,17 @@ export function tokenizePGN(gameSegment) {
     }
     tok = tok.replace(/^\d+\.\.\./, '').replace(/^\d+\./, '');
     if (!tok) continue;
-    tok = tok.replace(/[!?]+$/, '');
+    let extractedGlyph = null;
+    const glyphMatch = tok.match(/([!?]+)$/);
+    if (glyphMatch) {
+      extractedGlyph = glyphMatch[1];
+      tok = tok.slice(0, -extractedGlyph.length);
+    }
     if (SAN_RE.test(tok)) {
       tokens.push(tok);
+      if (extractedGlyph) {
+        tokens.push({ glyph: extractedGlyph });
+      }
     }
   }
   return tokens;
@@ -295,6 +319,12 @@ export function parsePGNToTree(pgn) {
         const current = stack[stack.length - 1];
         if (current && current.node) {
           current.node.comment = tok.comment;
+        }
+        continue;
+      } else if (typeof tok === 'object' && tok.glyph) {
+        const current = stack[stack.length - 1];
+        if (current && current.node) {
+          current.node.glyph = tok.glyph;
         }
         continue;
       }

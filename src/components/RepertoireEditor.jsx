@@ -114,6 +114,11 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
         }}
       >
         {mainSan}
+        {mainChild.glyph && (
+          <span className="font-bold ml-0.5" style={{ color: mainChild.glyph.includes('?') ? '#ff8a8a' : '#4ade80' }}>
+            {mainChild.glyph}
+          </span>
+        )}
       </span>
       {mainChild.comment && (
         <span className="inline-block text-[11px] italic mx-1 px-1.5 py-0.5 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)' }}>
@@ -167,6 +172,11 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
               }}
             >
               {varSan}
+              {varChild.glyph && (
+                <span className="font-bold ml-0.5" style={{ color: varChild.glyph.includes('?') ? '#ff8a8a' : '#4ade80' }}>
+                  {varChild.glyph}
+                </span>
+              )}
             </span>
             {varChild.comment && (
               <span className="inline-block text-[11px] italic mx-1 px-1.5 py-0.5 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)' }}>
