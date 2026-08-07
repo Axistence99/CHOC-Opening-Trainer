@@ -100,55 +100,37 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, isRoot =
   if (!node || !node.children || node.children.size === 0) return null;
   const entries = Array.from(node.children.entries());
   if (entries.length === 0) return null;
-  const [mainSan, mainChild] = entries[0];
-  const mainPath = [...pathSoFar, mainSan];
-  const isMainCurrent = currentPath.join(' ') === mainPath.join(' ');
-  const depth = mainChild.depth;
-  const moveNum = Math.floor((depth - 1) / 2) + 1;
-  const prefix = depth % 2 === 1 ? `${moveNum}. ` : (depth === 2 || isRoot ? `${moveNum}... ` : '');
 
   return (
     <span className="inline">
-      {prefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{prefix}</span>}
-      <span
-        onClick={() => onSelectNode && onSelectNode(mainPath, mainChild)}
-        className="cursor-pointer transition-colors hover:text-white"
-        style={{
-          color: isMainCurrent ? '#fff' : '#8daac4',
-          fontWeight: isMainCurrent ? 700 : 400,
-          background: isMainCurrent ? 'rgba(107,140,174,0.25)' : 'transparent',
-          padding: '1px 3px',
-          borderRadius: 3,
-        }}
-      >
-        {mainSan}
-      </span>{' '}
-      <PGNTreeView node={mainChild} currentPath={currentPath} pathSoFar={mainPath} onSelectNode={onSelectNode} isRoot={false} />
-      {entries.slice(1).map(([varSan, varChild]) => {
-        const varPath = [...pathSoFar, varSan];
-        const isVarCurrent = currentPath.join(' ') === varPath.join(' ');
-        const vDepth = varChild.depth;
-        const vMoveNum = Math.floor((vDepth - 1) / 2) + 1;
-        const vPrefix = vDepth % 2 === 1 ? `${vMoveNum}. ` : `${vMoveNum}... `;
+      {entries.map(([san, child], i) => {
+        const path = [...pathSoFar, san];
+        const isCurrent = currentPath.join(' ') === path.join(' ');
+        const depth = child.depth;
+        const moveNum = Math.floor((depth - 1) / 2) + 1;
+        const isWhite = depth % 2 === 1;
+        const prefix = isWhite ? `${moveNum}. ` : ((i > 0 || isRoot || depth === 2) ? `${moveNum}... ` : '');
+        const isVar = i > 0;
+
         return (
-          <span key={varPath.join(' ')} className="inline">
-            <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>(</span>
-            {vPrefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{vPrefix}</span>}
+          <span key={path.join(' ')} className="inline">
+            {isVar && <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>(</span>}
+            {prefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{prefix}</span>}
             <span
-              onClick={() => onSelectNode && onSelectNode(varPath, varChild)}
+              onClick={() => onSelectNode && onSelectNode(path, child)}
               className="cursor-pointer transition-colors hover:text-white"
               style={{
-                color: isVarCurrent ? '#fff' : '#fbbf24',
-                fontWeight: isVarCurrent ? 700 : 400,
-                background: isVarCurrent ? 'rgba(107,140,174,0.25)' : 'transparent',
+                color: isCurrent ? '#fff' : isVar ? '#fbbf24' : '#8daac4',
+                fontWeight: isCurrent ? 700 : 400,
+                background: isCurrent ? 'rgba(107,140,174,0.25)' : 'transparent',
                 padding: '1px 3px',
                 borderRadius: 3,
               }}
             >
-              {varSan}
+              {san}
             </span>{' '}
-            <PGNTreeView node={varChild} currentPath={currentPath} pathSoFar={varPath} onSelectNode={onSelectNode} isRoot={false} />
-            <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>)</span>{' '}
+            <PGNTreeView node={child} currentPath={currentPath} pathSoFar={path} onSelectNode={onSelectNode} isRoot={false} />
+            {isVar && <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>)</span>}{' '}
           </span>
         );
       })}
@@ -443,8 +425,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
       // Check if it's still user's turn or computer responds
       const isUserWhite = !repertoire.color || repertoire.color.toLowerCase() === 'white';
-      const tw = chess.turn() === 'w';
-      const isUserTurn = (isUserWhite && tw) || (!isUserWhite && !tw);
+      const isUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
 
       if (isUserTurn) {
         setTimeout(() => {
@@ -1006,33 +987,50 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                       </select>
                     </div>
                   )}
-                  {/* Move notation list (lichess-style) */}
+                  {/* Move notation list */}
                   <div className="rounded-xl p-3" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
                     <h3 className="font-orbitron font-semibold text-[10px] mb-2" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>MOVES</h3>
-                    <div className="flex flex-wrap gap-x-1 gap-y-0.5 font-mono text-xs leading-relaxed" style={{ color: 'rgba(160,152,138,0.7)' }}>
-                      {studyPath.slice(1).map((step, i) => {
-                        const isCurrent = i === studyStep - 1;
-                        const isPast = i < studyStep - 1;
-                        return (
-                          <span key={i} onClick={() => {
-                            setStudyStep(i + 1);
-                            setPosition(step.fen);
-                            setLastMove(step.from && step.to ? [step.from, step.to] : null);
-                            setCurrentPath(studyPath.slice(1, i + 2).map(s => s.san).filter(Boolean));
-                          }} className="cursor-pointer transition-colors hover:text-white" style={{
-                            color: isCurrent ? '#fff' : isPast ? '#8daac4' : 'rgba(160,152,138,0.4)',
-                            fontWeight: isCurrent ? 700 : 400,
-                            background: isCurrent ? 'rgba(107,140,174,0.15)' : 'transparent',
-                            padding: '1px 3px',
-                            borderRadius: 3,
-                          }}>
-                            {i % 2 === 0 && <span style={{ color: 'rgba(160,152,138,0.35)', marginRight: 2 }}>{Math.floor(i / 2) + 1}.</span>}
-                            {step.san}
-                          </span>
-                        );
-                      })}
-                      {studyPath.length <= 1 && <span className="italic" style={{ color: 'rgba(160,152,138,0.3)' }}>No moves</span>}
-                    </div>
+                    {studyLineIdx === 'all' ? (
+                      <div className="leading-relaxed whitespace-normal font-mono text-xs p-1">
+                        <PGNTreeView
+                          node={tree}
+                          currentPath={currentPath}
+                          onSelectNode={(p, child) => {
+                            if (child && child.fen) {
+                              setPosition(child.fen);
+                              setLastMove(child.move?.from && child.move?.to ? [child.move.from, child.move.to] : null);
+                              setCurrentPath(p);
+                              setStudyNode(child);
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-x-1 gap-y-0.5 font-mono text-xs leading-relaxed" style={{ color: 'rgba(160,152,138,0.7)' }}>
+                        {studyPath.slice(1).map((step, i) => {
+                          const isCurrent = i === studyStep - 1;
+                          const isPast = i < studyStep - 1;
+                          return (
+                            <span key={i} onClick={() => {
+                              setStudyStep(i + 1);
+                              setPosition(step.fen);
+                              setLastMove(step.from && step.to ? [step.from, step.to] : null);
+                              setCurrentPath(studyPath.slice(1, i + 2).map(s => s.san).filter(Boolean));
+                            }} className="cursor-pointer transition-colors hover:text-white" style={{
+                              color: isCurrent ? '#fff' : isPast ? '#8daac4' : 'rgba(160,152,138,0.4)',
+                              fontWeight: isCurrent ? 700 : 400,
+                              background: isCurrent ? 'rgba(107,140,174,0.15)' : 'transparent',
+                              padding: '1px 3px',
+                              borderRadius: 3,
+                            }}>
+                              {i % 2 === 0 && <span style={{ color: 'rgba(160,152,138,0.35)', marginRight: 2 }}>{Math.floor(i / 2) + 1}.</span>}
+                              {step.san}
+                            </span>
+                          );
+                        })}
+                        {studyPath.length <= 1 && <span className="italic" style={{ color: 'rgba(160,152,138,0.3)' }}>No moves</span>}
+                      </div>
+                    )}
                   </div>
 
                   {studyLineIdx === 'all' && (

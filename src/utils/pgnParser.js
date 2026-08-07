@@ -148,12 +148,17 @@ function extractGameSegments(pgn) {
   const games = [];
   for (const block of blocks) {
     let chapterName = null;
+    let fen = null;
     const eventMatch = block.match(/\[Event\s+"([^"]+)"\]/i);
     const openingMatch = block.match(/\[Opening\s+"([^"]+)"\]/i);
+    const fenMatch = block.match(/\[FEN\s+"([^"]+)"\]/i);
     if (eventMatch && eventMatch[1] && eventMatch[1] !== '?' && eventMatch[1] !== '*') {
       chapterName = eventMatch[1];
     } else if (openingMatch && openingMatch[1] && openingMatch[1] !== '?' && openingMatch[1] !== '*') {
       chapterName = openingMatch[1];
+    }
+    if (fenMatch && fenMatch[1]) {
+      fen = fenMatch[1].trim();
     }
     const cleaned = block
       .replace(/\[[^\]]*\]/g, ' ')
@@ -171,7 +176,7 @@ function extractGameSegments(pgn) {
     for (let i = 0; i < subGames.length; i++) {
       const g = subGames[i];
       const name = chapterName ? (subGames.length > 1 ? `${chapterName} (Pt. ${i+1})` : chapterName) : null;
-      games.push({ text: g, name });
+      games.push({ text: g, name, fen });
     }
   }
 
@@ -263,7 +268,13 @@ export function parsePGNToTree(pgn) {
           depth: current.node.depth + 1,
         });
       }
-      current.node = current.node.children.get(tok);
+      const childNode = current.node.children.get(tok);
+      current.node = childNode;
+
+      // Ensure turn color tag is attached so training mode knows whose turn it is
+      if (!childNode.turnColor) {
+        childNode.turnColor = current.chess.turn() === 'w' ? 'white' : 'black';
+      }
     }
 
     const lastNode = stack[stack.length - 1].node;
