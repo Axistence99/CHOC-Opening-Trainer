@@ -271,6 +271,58 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setTrainStatus('waiting');
   }, [repertoire]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ─── AUTOMATED BOT AUTO-RESPONSE IN TRAIN MODE ───
+  useEffect(() => {
+    if (mode !== 'train' || trainStatus === 'complete' || trainStatus === 'wrong' || trainStatus === 'waiting') return;
+    if (!expectedMoves || expectedMoves.size === 0) return;
+
+    const isUserWhite = !repertoire?.color || repertoire.color.toLowerCase() === 'white';
+    const isWhiteTurn = chess.turn() === 'w';
+    const isUserTurnNow = (isUserWhite && isWhiteTurn) || (!isUserWhite && !isWhiteTurn);
+
+    if (!isUserTurnNow) {
+      const timer = setTimeout(() => {
+        let currentExpected = expectedMoves;
+        let currentIsUserTurn = isUserTurnNow;
+        let lastM = null;
+        let lastRM = null;
+        let lastNN = currentNode;
+
+        while (!currentIsUserTurn && currentExpected && currentExpected.size > 0) {
+          const rm = pickOpponentMove(currentExpected);
+          if (!rm) break;
+          const nn = currentExpected.get(rm);
+          const move = executeMoveSafe(chess, rm, nn);
+          if (!move) break;
+          lastRM = rm;
+          lastM = move;
+          lastNN = nn;
+          const ne = new Map();
+          for (const [s, c] of nn.children.entries()) ne.set(s, c);
+          currentExpected = ne;
+          currentIsUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
+        }
+
+        setPosition(chess.fen());
+        if (lastM && lastRM) {
+          setCurrentPath(prev => [...prev, lastRM]);
+          setLastMove([lastM.from, lastM.to]);
+        }
+        setCurrentNode(lastNN);
+        setExpectedMoves(currentExpected);
+
+        if (currentIsUserTurn && currentExpected && currentExpected.size > 0) {
+          setTrainStatus('user_turn');
+          setTrainMessage('Your turn — play the correct move');
+        } else {
+          setTrainStatus('complete');
+          setTrainMessage('✅ Line complete!');
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [mode, trainStatus, expectedMoves, chess, repertoire?.color, currentNode]);
+
   // ─── STUDY MODE ───
   const handleSelectStudyLine = useCallback((idx) => {
     if (!allLines || idx < 0 || idx >= allLines.length) return;
@@ -376,40 +428,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setTrainStatus('user_turn');
       setTrainMessage('Your turn — play the correct move');
     } else if (expected.size > 0) {
-      // Computer responds immediately
-      let currentExpected = expected;
-      let currentIsUserTurn = isUserTurn;
-      let lastM = null;
-      let lastRM = null;
-      let lastNN = node;
-      while (!currentIsUserTurn && currentExpected && currentExpected.size > 0) {
-        const rm = pickOpponentMove(currentExpected);
-        if (!rm) break;
-        const nn = currentExpected.get(rm);
-        const move = executeMoveSafe(chess, rm, nn);
-        if (!move) break;
-        lastRM = rm;
-        lastM = move;
-        lastNN = nn;
-        const ne = new Map();
-        for (const [s, c] of nn.children.entries()) ne.set(s, c);
-        currentExpected = ne;
-        currentIsUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
-      }
-      setPosition(chess.fen());
-      if (lastM && lastRM) {
-        setCurrentPath(prev => [...prev, lastRM]);
-        setLastMove([lastM.from, lastM.to]);
-      }
-      setCurrentNode(lastNN);
-      setExpectedMoves(currentExpected);
-      if (currentIsUserTurn && currentExpected && currentExpected.size > 0) {
-        setTrainStatus('user_turn');
-        setTrainMessage('Your turn — play the correct move');
-      } else {
-        setTrainStatus('complete');
-        setTrainMessage('✅ Line complete!');
-      }
+      setTrainStatus('correct');
+      setTrainMessage('Computer to move...');
     } else {
       setTrainStatus('complete');
       setTrainMessage('✅ Line complete!');
@@ -456,48 +476,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       const isUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
 
       if (isUserTurn) {
-        setTimeout(() => {
-          setTrainStatus('user_turn');
-          setTrainMessage('Your turn — play the correct move');
-        }, 400);
+        setTrainStatus('user_turn');
+        setTrainMessage('Your turn — play the correct move');
       } else {
-        // Computer auto-responds with book move
-        setTrainMessage('✓ Correct!');
-        setTimeout(() => {
-          let currentExpected = newExpected;
-          let currentIsUserTurn = isUserTurn;
-          let lastM = null;
-          let lastRM = null;
-          let lastNN = nextNode;
-          while (!currentIsUserTurn && currentExpected && currentExpected.size > 0) {
-            const rm = pickOpponentMove(currentExpected);
-            if (!rm) break;
-            const nn = currentExpected.get(rm);
-            const move = executeMoveSafe(chess, rm, nn);
-            if (!move) break;
-            lastRM = rm;
-            lastM = move;
-            lastNN = nn;
-            const ne = new Map();
-            for (const [s, c] of nn.children.entries()) ne.set(s, c);
-            currentExpected = ne;
-            currentIsUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
-          }
-          setPosition(chess.fen());
-          if (lastM && lastRM) {
-            setCurrentPath(prev => [...prev, lastRM]);
-            setLastMove([lastM.from, lastM.to]);
-          }
-          setCurrentNode(lastNN);
-          setExpectedMoves(currentExpected);
-          if (currentIsUserTurn && currentExpected && currentExpected.size > 0) {
-            setTrainStatus('user_turn');
-            setTrainMessage('Your turn — play the correct move');
-          } else {
-            setTrainStatus('complete');
-            setTrainMessage('✅ Line complete!');
-          }
-        }, 150);
+        setTrainStatus('correct');
+        setTrainMessage('✓ Correct! Computer responding...');
       }
     } else {
       // ❌ WRONG — show red X, then rewind with animation
