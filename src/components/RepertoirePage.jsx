@@ -550,6 +550,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   }, [lineIndex, activeTrainLines, trainLineFilter, tree, startTrainLine]);
 
   const handleRestartLine = useCallback(() => {
+    setExpectedMoves(new Map());
     startTrainLine(activeTrainLines, lineIndex, tree);
   }, [activeTrainLines, lineIndex, tree, startTrainLine]);
 

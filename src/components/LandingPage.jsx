@@ -315,15 +315,34 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
 
     // Exact, intentional matches between browse openings and prebuilt repertoires.
     const OPENING_TO_PREBUILT = {
+      'beginner-white': 'beginner-white',
+      'beginner-black': 'beginner-black',
+      'italian-game': 'italian-game',
       'sicilian': 'sicilian-dragon',
+      'sicilian-dragon': 'sicilian-dragon',
       'queens-gambit': 'queens-gambit',
       'kings-indian': 'kings-indian',
       'catalan-white': 'catalan-white',
+      'london': 'beginner-white',
+      'french': 'beginner-black',
+      'caro-kann': 'beginner-black',
+      'ruy-lopez': 'italian-game',
     };
     const mappedId = OPENING_TO_PREBUILT[target.id];
     const matching = mappedId
       ? PREBUILT_REPERTOIRES.find((p) => p.id === mappedId)
       : null;
+
+    if (target.pgn && target.isCustom) {
+      try {
+        const tree = parsePGNToTree(target.pgn);
+        onSelectRepertoire({ ...target, tree });
+      } catch (e) {
+        console.error(e);
+        onSelectRepertoire(target);
+      }
+      return;
+    }
 
     if (matching) {
       const repertoires = getRepertoires();
