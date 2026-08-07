@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Chess } from 'chess.js';
-import { parsePGNToTree, getLeafPaths, countPositions, treeToPGN } from '../utils/pgnParser';
+import { parsePGNToTree, getLeafPaths, countPositions, treeToPGN, updateChapterNamesInPGN } from '../utils/pgnParser';
 import { updatePracticeEntry, updateRepertoire, deleteRepertoire, getSettings, resetAllCards } from '../utils/storage';
 import { getOpeningFromMoves } from '../data/ecoOpenings';
 import { getBoardTheme, getBoardThemeBackground } from '../data/boardThemes';
@@ -250,6 +250,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // Edit state
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editChapterNames, setEditChapterNames] = useState([]);
   const [editSaved, setEditSaved] = useState(false);
 
   // Board settings
@@ -270,6 +271,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     const lines = buildAllLines(parsedTree);
     const shuffled = [...lines].sort(() => Math.random() - 0.5);
     setAllLines(shuffled);
+    setEditChapterNames(shuffled.map((l, idx) => l.name || `Chapter ${idx + 1}`));
     setLineIndex(0);
     setStats({ correct: 0, wrong: 0, total: 0 });
 
@@ -624,12 +626,16 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // ─── EDIT MODE ───
   const handleSaveEdit = useCallback(() => {
     if (!repertoire) return;
-    const updates = { name: editName.trim(), description: editDescription.trim() };
+    const newPgn = updateChapterNamesInPGN(repertoire.pgn, editChapterNames);
+    const updates = { name: editName.trim(), description: editDescription.trim(), pgn: newPgn };
     updateRepertoire(repertoire.id, updates);
-    if (onRepertoireUpdate) onRepertoireUpdate({ ...repertoire, ...updates });
+    if (onRepertoireUpdate) {
+      const updatedTree = parsePGNToTree(newPgn);
+      onRepertoireUpdate({ ...repertoire, ...updates, tree: updatedTree });
+    }
     setEditSaved(true);
     setTimeout(() => setEditSaved(false), 2000);
-  }, [repertoire, editName, editDescription, onRepertoireUpdate]);
+  }, [repertoire, editName, editDescription, editChapterNames, onRepertoireUpdate]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -725,7 +731,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       lastMove: lastMove ? [lastMove[0], lastMove[1]] : undefined,
       coordinates: true,
       highlight: { lastMove: true, check: true },
-      animation: { enabled: true, duration: 200 },
+      animation: { enabled: !isUserTurn, duration: 200 },
       movable: {
         free: false,
         dests: destsMap,
@@ -733,8 +739,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         color: interactive ? 'both' : undefined,
         events: { after: mode === 'study' ? handleStudyUserMove : handleTrainUserMove },
       },
-      draggable: { enabled: interactive, showGhost: true },
-      selectable: { enabled: interactive },
+      draggable: { enabled: true, showGhost: true },
+      selectable: { enabled: true },
       drawable: { enabled: false, visible: true, autoShapes: [...(studyArrows || []), ...hintShapes] },
     };
   }, [position, orientation, turnColor, lastMove, dests, isUserTurn, mode, handleStudyUserMove, handleTrainUserMove, studyArrows, hintShapes]);
@@ -852,7 +858,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
           {/* Board area — pb-44 on mobile to clear the bottom panel */}
           <main className="flex-1 flex flex-col items-center justify-center p-2 pb-44 md:p-6 md:pb-6 gap-3">
             {/* Status indicators (OUTSIDE the chessboard so they never cover any squares or pieces) */}
-            <div className="flex items-center justify-center gap-2 min-h-[32px] w-full">
+            <div className="flex items-center justify-center gap-2 h-[36px] w-full shrink-0">
               {moveGlyph && !wrongSquare && (
                 <div
                   className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-orbitron font-bold shadow-lg transition-all duration-200"
@@ -1244,6 +1250,46 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                     >
                       🗑 Delete Repertoire
                     </button>
+
+                    {/* Chapter renaming */}
+                    {allLines && allLines.length > 0 && (
+                      <div className="rounded-xl p-3 space-y-2 mt-2" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.12)' }}>
+                        <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>
+                          RENAME CHAPTERS ({allLines.length})
+                        </h3>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                          {allLines.map((line, idx) => {
+                            const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
+                            const currName = editChapterNames[idx] ?? (line.name || `Chapter ${idx + 1}`);
+                            return (
+                              <div key={idx} className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-mono w-5 text-right shrink-0" style={{ color: 'rgba(150,142,130,0.5)' }}>
+                                  {idx + 1}.
+                                </span>
+                                <input
+                                  type="text"
+                                  value={currName}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditChapterNames(prev => {
+                                      const next = [...prev];
+                                      next[idx] = val;
+                                      return next;
+                                    });
+                                  }}
+                                  placeholder={`Chapter ${idx + 1}`}
+                                  className="flex-1 px-2 py-1 rounded text-xs"
+                                  style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)', color: '#cbd5e1', outline: 'none' }}
+                                />
+                                <span className="text-[10px] font-mono truncate max-w-[70px] shrink-0" style={{ color: 'rgba(160,152,138,0.4)' }} title={preview}>
+                                  {preview}...
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Repertoire info */}
@@ -1340,6 +1386,46 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
               >
                 🗑 Delete Repertoire
               </button>
+
+              {/* Chapter renaming */}
+              {allLines && allLines.length > 0 && (
+                <div className="rounded-xl p-3 space-y-2 mt-2" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.12)' }}>
+                  <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>
+                    RENAME CHAPTERS ({allLines.length})
+                  </h3>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {allLines.map((line, idx) => {
+                      const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
+                      const currName = editChapterNames[idx] ?? (line.name || `Chapter ${idx + 1}`);
+                      return (
+                        <div key={idx} className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono w-5 text-right shrink-0" style={{ color: 'rgba(150,142,130,0.5)' }}>
+                            {idx + 1}.
+                          </span>
+                          <input
+                            type="text"
+                            value={currName}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditChapterNames(prev => {
+                                const next = [...prev];
+                                next[idx] = val;
+                                return next;
+                              });
+                            }}
+                            placeholder={`Chapter ${idx + 1}`}
+                            className="flex-1 px-2 py-1 rounded text-xs"
+                            style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)', color: '#cbd5e1', outline: 'none' }}
+                          />
+                          <span className="text-[10px] font-mono truncate max-w-[70px] shrink-0" style={{ color: 'rgba(160,152,138,0.4)' }} title={preview}>
+                            {preview}...
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

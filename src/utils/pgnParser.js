@@ -184,6 +184,63 @@ export function extractGameSegments(pgn) {
 }
 
 /**
+ * Update chapter/event names across PGN blocks (one per block/chapter)
+ */
+export function updateChapterNamesInPGN(pgn, chapterNames) {
+  const rawText = String(pgn || '').trim();
+  if (!rawText || !Array.isArray(chapterNames)) return rawText;
+
+  const lines = rawText.split(/\r?\n/);
+  const blocks = [];
+  let currentLines = [];
+  let hasMoveText = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (currentLines.length > 0) currentLines.push(line);
+      continue;
+    }
+    if (trimmed.startsWith('[')) {
+      if (hasMoveText) {
+        blocks.push(currentLines.join('\n'));
+        currentLines = [];
+        hasMoveText = false;
+      }
+      currentLines.push(line);
+    } else {
+      hasMoveText = true;
+      currentLines.push(line);
+    }
+  }
+  if (currentLines.length > 0) {
+    blocks.push(currentLines.join('\n'));
+  }
+
+  const updatedBlocks = blocks.map((block, idx) => {
+    const newName = chapterNames[idx];
+    if (newName === undefined || newName === null) return block;
+    const cleanName = String(newName).trim().replace(/"/g, '');
+    let res = block;
+    let replaced = false;
+    if (/\[ChapterName\s+"[^"]*"\]/i.test(res)) {
+      res = res.replace(/\[ChapterName\s+"[^"]*"\]/i, `[ChapterName "${cleanName}"]`);
+      replaced = true;
+    }
+    if (/\[Event\s+"[^"]*"\]/i.test(res)) {
+      res = res.replace(/\[Event\s+"[^"]*"\]/i, `[Event "${cleanName}"]`);
+      replaced = true;
+    }
+    if (!replaced) {
+      res = `[Event "${cleanName}"]\n[ChapterName "${cleanName}"]\n` + res;
+    }
+    return res;
+  });
+
+  return updatedBlocks.join('\n\n');
+}
+
+/**
  * Tokenize a single game's move text into an array of SAN move strings
  * and variation brackets '(' and ')', skipping move numbers and result markers.
  */
