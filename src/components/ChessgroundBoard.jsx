@@ -96,6 +96,23 @@ export default function ChessgroundBoard({ config, boardTheme }) {
     }
   }, []);
 
+function enhanceConfig(config) {
+  if (!config) return config;
+  return {
+    ...config,
+    draggable: {
+      distance: 4,
+      autoDistance: true,
+      showGhost: true,
+      ...(config.draggable || {}),
+    },
+    selectable: {
+      enabledAfterMove: true,
+      ...(config.selectable || {}),
+    },
+  };
+}
+
   // Initialize chessground once we have locked dimensions
   useEffect(() => {
     if (boardPx <= 0 || !containerRef.current) return;
@@ -103,7 +120,7 @@ export default function ChessgroundBoard({ config, boardTheme }) {
       cgRef.current.destroy();
       cgRef.current = null;
     }
-    cgRef.current = Chessground(containerRef.current, config);
+    cgRef.current = Chessground(containerRef.current, enhanceConfig(config));
     applyBoardColors();
     return () => {
       if (cgRef.current) {
@@ -116,7 +133,7 @@ export default function ChessgroundBoard({ config, boardTheme }) {
   // Update config on change
   useEffect(() => {
     if (cgRef.current && config && boardPx > 0) {
-      cgRef.current.set(config);
+      cgRef.current.set(enhanceConfig(config));
     }
   }, [config, boardPx]);
 

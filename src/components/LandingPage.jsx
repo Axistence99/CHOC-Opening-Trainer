@@ -590,7 +590,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
               </div>
             )}
 
-            <div className="px-5 py-4 border-t" style={{ borderColor: 'rgba(107,140,174,0.1)' }}>
+            <div className="hidden md:block px-5 py-4 border-t" style={{ borderColor: 'rgba(107,140,174,0.1)' }}>
               <div className="rounded-lg p-3" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)' }}>
                 <div style={{ fontFamily: "'Orbitron', sans-serif", color: '#8daac4', fontSize: '0.65rem', letterSpacing: '0.1em', marginBottom: '0.4rem' }}>KEYBOARD SHORTCUTS</div>
                 <div style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.65rem', lineHeight: 1.6 }}>

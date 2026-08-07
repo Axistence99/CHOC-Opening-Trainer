@@ -212,29 +212,22 @@ export default function PlayVsEngine({ playerColor, boardTheme, onExit, embedded
           </div>
         </div>
 
-        {/* Play as White / Black */}
+        {/* Single toggle: Play as White / Play as Black */}
         {onColorChange && (
-          <div className="flex items-center gap-2 w-full max-w-sm">
+          <div className="w-full max-w-sm">
             <button
-              onClick={() => onColorChange('w')}
-              className={`flex-1 px-3 py-2 rounded-lg transition-all hover:scale-105 text-[11px] font-orbitron ${playerColor === 'w' ? 'text-white' : ''}`}
+              onClick={() => onColorChange(playerColor === 'w' ? 'b' : 'w')}
+              className="w-full px-4 py-2 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] text-xs font-orbitron font-semibold flex items-center justify-center gap-2"
               style={{
-                background: playerColor === 'w' ? 'linear-gradient(135deg, rgba(248,250,252,0.22), rgba(203,213,225,0.08))' : 'rgba(107,140,174,0.08)',
-                border: playerColor === 'w' ? '1px solid rgba(248,250,252,0.35)' : '1px solid rgba(107,140,174,0.18)',
-                color: playerColor === 'w' ? '#fff' : '#8daac4',
+                background: playerColor === 'w' ? 'linear-gradient(135deg, rgba(107,140,174,0.35), rgba(15,23,42,0.9))' : 'linear-gradient(135deg, rgba(248,250,252,0.22), rgba(203,213,225,0.08))',
+                border: playerColor === 'w' ? '1px solid rgba(107,140,174,0.5)' : '1px solid rgba(248,250,252,0.35)',
+                color: '#fff',
                 letterSpacing: '0.08em', cursor: 'pointer',
               }}
-            >♔ PLAY AS WHITE</button>
-            <button
-              onClick={() => onColorChange('b')}
-              className={`flex-1 px-3 py-2 rounded-lg transition-all hover:scale-105 text-[11px] font-orbitron ${playerColor === 'b' ? 'text-white' : ''}`}
-              style={{
-                background: playerColor === 'b' ? 'linear-gradient(135deg, rgba(107,140,174,0.35), rgba(15,23,42,0.9))' : 'rgba(107,140,174,0.08)',
-                border: playerColor === 'b' ? '1px solid rgba(107,140,174,0.5)' : '1px solid rgba(107,140,174,0.18)',
-                color: playerColor === 'b' ? '#fff' : '#8daac4',
-                letterSpacing: '0.08em', cursor: 'pointer',
-              }}
-            >♚ PLAY AS BLACK</button>
+            >
+              <span className="text-sm">{playerColor === 'w' ? '♚' : '♔'}</span>
+              <span>{playerColor === 'w' ? 'PLAY AS BLACK' : 'PLAY AS WHITE'}</span>
+            </button>
           </div>
         )}
 

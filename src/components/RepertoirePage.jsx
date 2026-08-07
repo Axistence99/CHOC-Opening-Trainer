@@ -117,6 +117,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [expectedMoves, setExpectedMoves] = useState(new Map());
   const [allLines, setAllLines] = useState([]);
   const [lineIndex, setLineIndex] = useState(0);
+  const [trainLineFilter, setTrainLineFilter] = useState('all');
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   const [wrongSquare, setWrongSquare] = useState(null); // { from, to } for red X
 
@@ -281,7 +282,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       return;
     }
     const line = lines[idx];
-    const isUserWhite = repertoire.color === 'white';
+    const isUserWhite = !repertoire.color || repertoire.color.toLowerCase() === 'white';
     chess.reset();
     setPosition(chess.fen());
     setCurrentPath([]);
@@ -377,7 +378,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       }
 
       // Check if it's still user's turn or computer responds
-      const isUserWhite = repertoire.color === 'white';
+      const isUserWhite = !repertoire.color || repertoire.color.toLowerCase() === 'white';
       const tw = chess.turn() === 'w';
       const isUserTurn = (isUserWhite && tw) || (!isUserWhite && !tw);
 
@@ -436,22 +437,33 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     }
   }, [chess, trainStatus, expectedMoves, repertoire, hintStage, handleSessionProgress, bumpDailyCount]);
 
+  const activeTrainLines = useMemo(() => {
+    return trainLineFilter === 'all' ? allLines : [allLines[Number(trainLineFilter)]];
+  }, [allLines, trainLineFilter]);
+
+  const handleTrainFilterChange = useCallback((val) => {
+    setTrainLineFilter(val);
+    const targetLines = val === 'all' ? allLines : [allLines[Number(val)]];
+    setLineIndex(0);
+    startTrainLine(targetLines, 0, tree);
+  }, [allLines, tree, startTrainLine]);
+
   const handleNextLine = useCallback(() => {
     const ni = lineIndex + 1;
-    if (ni >= allLines.length) {
-      const rs = [...allLines].sort(() => Math.random() - 0.5);
-      setAllLines(rs);
+    if (ni >= activeTrainLines.length) {
+      const rs = [...activeTrainLines].sort(() => Math.random() - 0.5);
+      if (trainLineFilter === 'all') setAllLines(rs);
       setLineIndex(0);
       startTrainLine(rs, 0, tree);
     } else {
       setLineIndex(ni);
-      startTrainLine(allLines, ni, tree);
+      startTrainLine(activeTrainLines, ni, tree);
     }
-  }, [lineIndex, allLines, tree, startTrainLine]);
+  }, [lineIndex, activeTrainLines, trainLineFilter, tree, startTrainLine]);
 
   const handleRestartLine = useCallback(() => {
-    startTrainLine(allLines, lineIndex, tree);
-  }, [allLines, lineIndex, tree, startTrainLine]);
+    startTrainLine(activeTrainLines, lineIndex, tree);
+  }, [activeTrainLines, lineIndex, tree, startTrainLine]);
 
   // ─── PROGRESSIVE HINTS ───
   // Stage 1 = source square glows; Stage 2 = full arrow. Hint downgrades the rating to Hard.
@@ -765,7 +777,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                         const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
                         return (
                           <option key={idx} value={idx} style={{ background: '#0a0d18', color: '#cbd5e1' }}>
-                            Line {idx + 1} of {allLines.length} ({preview}...)
+                            {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1} of ${allLines.length}`} ({preview}...)
                           </option>
                         );
                       })}
@@ -793,6 +805,29 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             )}
 
             {/* Board controls for Train mode */}
+            {mode === 'train' && allLines.length > 1 && (
+              <div className="w-full max-w-sm md:max-w-md flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)' }}>
+                <span className="text-[10px] font-orbitron font-semibold" style={{ color: '#8daac4', letterSpacing: '0.05em' }}>PRACTICE:</span>
+                <select
+                  value={trainLineFilter}
+                  onChange={(e) => handleTrainFilterChange(e.target.value)}
+                  className="bg-transparent text-xs text-slate-200 outline-none cursor-pointer flex-1 text-right font-medium"
+                  style={{ background: '#0a0d18' }}
+                >
+                  <option value="all" style={{ background: '#0a0d18', color: '#cbd5e1' }}>
+                    Whole Repertoire ({allLines.length} lines)
+                  </option>
+                  {allLines.map((line, idx) => {
+                    const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
+                    return (
+                      <option key={idx} value={idx} style={{ background: '#0a0d18', color: '#cbd5e1' }}>
+                        {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`} ({preview}...)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
             {mode === 'train' && trainStatus === 'complete' && (
               <button onClick={handleNextLine} className="px-5 py-2.5 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>NEXT LINE →</button>
             )}
@@ -823,7 +858,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                           const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
                           return (
                             <option key={idx} value={idx}>
-                              Line {idx + 1}: {preview}...
+                              {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`}: {preview}...
                             </option>
                           );
                         })}
@@ -903,6 +938,29 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
               {mode === 'train' && !allCaughtUp && (
                 <>
+                  {allLines.length > 1 && (
+                    <div className="rounded-xl p-3 space-y-1" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
+                      <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>PRACTICE FILTER</h3>
+                      <select
+                        value={trainLineFilter}
+                        onChange={(e) => handleTrainFilterChange(e.target.value)}
+                        className="w-full bg-slate-900 text-xs text-slate-200 rounded px-2.5 py-1.5 border border-slate-700 outline-none cursor-pointer"
+                      >
+                        <option value="all">
+                          Whole Repertoire ({allLines.length} lines)
+                        </option>
+                        {allLines.map((line, idx) => {
+                          const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
+                          return (
+                            <option key={idx} value={idx}>
+                              {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`}: {preview}...
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Status */}
                   <div className="rounded-xl p-3.5" style={{
                     background: trainStatus === 'correct' ? 'rgba(107,140,174,0.12)' : trainStatus === 'wrong' ? 'rgba(255,107,107,0.08)' : trainStatus === 'complete' ? 'rgba(168,131,74,0.12)' : 'rgba(15,20,40,0.6)',

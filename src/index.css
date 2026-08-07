@@ -76,6 +76,15 @@ body {
 .cg-wrap piece {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+  pointer-events: none;
+}
+
+/* Touchpad & mouse click precision fix: target squares must capture clicks */
+cg-board square {
+  pointer-events: none;
+}
+cg-board square.move-dest {
+  pointer-events: auto;
 }
 
 /* Pieces MUST use background-size: cover (chessground default) to fill

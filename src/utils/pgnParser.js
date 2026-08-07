@@ -113,20 +113,69 @@ const SAN_RE =
  * (segments delimited by result markers like "*", "1-0", "0-1", "1/2-1/2").
  */
 function extractGameSegments(pgn) {
-  let text = String(pgn || '')
-    // headers
-    .replace(/\[[^\]]*\]/g, ' ')
-    // brace comments
-    .replace(/\{[^}]*\}/g, ' ')
-    // line comments
-    .replace(/;[^\n]*/g, ' ')
-    .replace(/\$\d+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return text
-    .split(/\b(?:1-0|0-1|1\/2-1\/2|½-½)\b|\*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const rawText = String(pgn || '').trim();
+  if (!rawText) return [];
+
+  const lines = rawText.split(/\r?\n/);
+  const blocks = [];
+  let currentLines = [];
+  let hasMoveText = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (currentLines.length > 0) currentLines.push(line);
+      continue;
+    }
+
+    if (trimmed.startsWith('[')) {
+      if (hasMoveText) {
+        blocks.push(currentLines.join('\n'));
+        currentLines = [];
+        hasMoveText = false;
+      }
+      currentLines.push(line);
+    } else {
+      hasMoveText = true;
+      currentLines.push(line);
+    }
+  }
+
+  if (currentLines.length > 0) {
+    blocks.push(currentLines.join('\n'));
+  }
+
+  const games = [];
+  for (const block of blocks) {
+    let chapterName = null;
+    const eventMatch = block.match(/\[Event\s+"([^"]+)"\]/i);
+    const openingMatch = block.match(/\[Opening\s+"([^"]+)"\]/i);
+    if (eventMatch && eventMatch[1] && eventMatch[1] !== '?' && eventMatch[1] !== '*') {
+      chapterName = eventMatch[1];
+    } else if (openingMatch && openingMatch[1] && openingMatch[1] !== '?' && openingMatch[1] !== '*') {
+      chapterName = openingMatch[1];
+    }
+    const cleaned = block
+      .replace(/\[[^\]]*\]/g, ' ')
+      .replace(/\{[^}]*\}/g, ' ')
+      .replace(/;[^\n]*/g, ' ')
+      .replace(/\$\d+/g, ' ')
+      .replace(/\b(?:1-0|0-1|1\/2-1\/2|½-½)\b|\*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!cleaned) continue;
+    const subGames = cleaned
+      .split(/\b(?:1-0|0-1|1\/2-1\/2|½-½)\b|\*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (let i = 0; i < subGames.length; i++) {
+      const g = subGames[i];
+      const name = chapterName ? (subGames.length > 1 ? `${chapterName} (Pt. ${i+1})` : chapterName) : null;
+      games.push({ text: g, name });
+    }
+  }
+
+  return games;
 }
 
 /**
@@ -173,7 +222,7 @@ export function parsePGNToTree(pgn) {
   const games = extractGameSegments(pgn);
 
   for (const game of games) {
-    const tokens = tokenizePGN(game);
+    const tokens = tokenizePGN(game.text || game);
     if (tokens.length === 0) continue;
 
     const stack = [{ node: root, chess: new Chess() }];
@@ -215,6 +264,11 @@ export function parsePGNToTree(pgn) {
         });
       }
       current.node = current.node.children.get(tok);
+    }
+
+    const lastNode = stack[stack.length - 1].node;
+    if (game.name && lastNode) {
+      lastNode.chapterName = game.name;
     }
   }
 
@@ -322,11 +376,13 @@ export function getLeafPaths(node) {
   const paths = [];
   
   function traverse(current, path) {
-    if (current.children.size === 0) {
+    if (current.children.size === 0 || current.chapterName) {
       if (path.length > 0) {
-        paths.push([...path]);
+        const line = [...path];
+        line.name = current.chapterName || null;
+        paths.push(line);
       }
-      return;
+      if (current.children.size === 0) return;
     }
     
     for (const [san, child] of current.children) {
