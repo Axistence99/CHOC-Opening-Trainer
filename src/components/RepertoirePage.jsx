@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { parsePGNToTree, getLeafPaths, countPositions, treeToPGN } from '../utils/pgnParser';
-import { updatePracticeEntry, updateRepertoire, getSettings, resetAllCards } from '../utils/storage';
+import { updatePracticeEntry, updateRepertoire, deleteRepertoire, getSettings, resetAllCards } from '../utils/storage';
 import { getOpeningFromMoves } from '../data/ecoOpenings';
 import { getBoardTheme, getBoardThemeBackground } from '../data/boardThemes';
 import BoardThemePicker from './BoardThemePicker';
@@ -603,6 +603,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     transition: 'all 0.2s',
   });
 
+  const handleDeleteRepertoire = useCallback(() => {
+    if (!repertoire || !repertoire.id) return;
+    if (!window.confirm(`Are you sure you want to delete "${repertoire.name}"?`)) return;
+    deleteRepertoire(repertoire.id);
+    onExit();
+  }, [repertoire, onExit]);
+
   // ─── SPARRING MODE ───
   if (sparMode) {
     return (
@@ -647,11 +654,21 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
           </div>
           <div className="flex items-center gap-2">
             {/* Mode toggle */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               <button onClick={() => { setMode('study'); studyReset(); }} style={modeBtn('study')}>📖 STUDY</button>
               <button onClick={() => { setMode('train'); chess.reset(); setPosition(chess.fen()); setCurrentPath([]); setLastMove(null); if (tree && allLines.length > 0) startTrainLine(allLines, 0, tree); }} style={modeBtn('train')}>🎯 TRAIN</button>
               <button onClick={() => setSparMode(true)} style={modeBtn('spar')}>⚔ SPAR</button>
               <button onClick={() => setMode('edit')} style={modeBtn('edit')}>✏️ EDIT</button>
+              {repertoire.isCustom && (
+                <button
+                  onClick={handleDeleteRepertoire}
+                  title="Delete Repertoire"
+                  className="px-2 py-1 text-xs rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-1 font-orbitron"
+                  style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer' }}
+                >
+                  🗑
+                </button>
+              )}
             </div>
             {mode === 'train' && (
               <div className="hidden sm:flex items-center gap-2 text-xs" style={{ color: 'rgba(150,142,130,0.6)' }}>
