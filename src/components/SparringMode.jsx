@@ -3,6 +3,7 @@ import { Chess } from 'chess.js';
 import StockfishEngine, { uciToMove } from '../utils/stockfishEngine';
 import { getBoardThemeBackground } from '../data/boardThemes';
 import ChessgroundBoard from './ChessgroundBoard';
+import { getLeafPaths } from '../utils/pgnParser';
 
 const SKILL_LEVELS = [
   { level: 1, label: 'Beginner', elo: '~800' },
@@ -59,6 +60,11 @@ export default function SparringMode({ repertoire, boardTheme, onExit }) {
   const [deviations, setDeviations] = useState([]); // moves not in the book
   const [lastDeviation, setLastDeviation] = useState(null); // { san, bookMoves: [string] }
   const [isUserWhite] = useState(repertoire?.color === 'white');
+  const allLines = useMemo(() => {
+    if (!repertoire || !repertoire.tree) return [];
+    return getLeafPaths(repertoire.tree);
+  }, [repertoire]);
+  const [startLineIdx, setStartLineIdx] = useState(-1);
 
   const engineRef = useRef(null);
 
@@ -173,18 +179,34 @@ export default function SparringMode({ repertoire, boardTheme, onExit }) {
     setTimeout(() => makeEngineMove(), 300);
   }, [chess, isPlayerTurn, gameStatus, makeEngineMove, repertoire, moveHistory.length]);
 
-  const handleNewGame = useCallback(() => {
+  const handleStartLineChange = useCallback((idx) => {
+    setStartLineIdx(idx);
     chess.reset();
-    setFen(chess.fen());
+    let targetFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    let history = [];
+    if (idx >= 0 && allLines[idx]) {
+      const line = allLines[idx];
+      const lastItem = line[line.length - 1];
+      if (lastItem && lastItem.fen) {
+        targetFen = lastItem.fen;
+        history = line.map(l => typeof l === 'string' ? l : l.san);
+      }
+    }
+    const c = new Chess(targetFen);
+    setFen(c.fen());
     setLastMove(null);
-    setMoveHistory([]);
+    setMoveHistory(history);
     setGameStatus('playing');
     setDeviations([]);
     setLastDeviation(null);
-    if (!isUserWhite) {
+    if (!isUserWhite && c.turn() === 'w') {
       setTimeout(() => makeEngineMove(), 500);
     }
-  }, [chess, isUserWhite, makeEngineMove]);
+  }, [allLines, isUserWhite, makeEngineMove, chess]);
+
+  const handleNewGame = useCallback(() => {
+    handleStartLineChange(startLineIdx);
+  }, [handleStartLineChange, startLineIdx]);
 
   const dests = useMemo(() => computeDests(fen), [fen]);
   const turnColor = chess.turn() === 'w' ? 'white' : 'black';
@@ -308,6 +330,30 @@ export default function SparringMode({ repertoire, boardTheme, onExit }) {
                 You played <strong style={{ color: '#ff6b6b' }}>{lastDeviation.san}</strong> instead of <strong style={{ color: '#4ade80' }}>{lastDeviation.bookMoves.join(', ')}</strong>
               </p>
               <p className="text-xs mt-1" style={{ color: 'rgba(160,152,138,0.5)' }}>Green arrow shows the book move</p>
+            </div>
+          )}
+
+          {/* Starting Position Selector */}
+          {allLines.length > 0 && (
+            <div className="rounded-xl p-2.5 md:p-3 space-y-1.5" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
+              <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>STARTING POSITION</h3>
+              <select
+                value={startLineIdx}
+                onChange={(e) => handleStartLineChange(Number(e.target.value))}
+                className="w-full bg-slate-900 text-xs text-slate-200 rounded px-2.5 py-1.5 border border-slate-700 outline-none cursor-pointer font-medium"
+              >
+                <option value={-1}>
+                  Starting Board Position (Move 1)
+                </option>
+                {allLines.map((line, idx) => {
+                  const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
+                  return (
+                    <option key={idx} value={idx}>
+                      {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`}: {preview}...
+                    </option>
+                  );
+                })}
+              </select>
             </div>
           )}
 

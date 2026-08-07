@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { Chess } from 'chess.js';
-import { getRepertoires, addRepertoire, deleteRepertoire } from '../utils/storage';
+import { getRepertoires, addRepertoire, deleteRepertoire, getDeletedOpenings } from '../utils/storage';
 import { parsePGNToTree, countPositions } from '../utils/pgnParser';
 import PREBUILT_REPERTOIRES from '../data/prebuiltRepertoires';
 import { getAllBoardThemes, getBoardTheme, getBoardThemeBackground, getBoardThemePreview } from '../data/boardThemes';
@@ -38,7 +38,8 @@ function getCustomRepertoireMoves(rep) {
 
 // Combine saved custom repertoires with default prebuilt openings
 function loadAllOpenings() {
-  const customReps = getRepertoires();
+  const deletedIds = getDeletedOpenings();
+  const customReps = getRepertoires().filter(r => !deletedIds.includes(r.id));
   const formattedCustoms = customReps.map(rep => {
     const isWhite = rep.color === 'white' || (rep.tags && rep.tags.includes('White'));
     const colorTag = isWhite ? 'White' : 'Black';
@@ -59,7 +60,8 @@ function loadAllOpenings() {
       createdAt: rep.createdAt,
     };
   });
-  return [...formattedCustoms, ...OPENINGS];
+  const activePrebuilts = OPENINGS.filter(o => !deletedIds.includes(o.id) && !deletedIds.includes(`opening-${o.id}`));
+  return [...formattedCustoms, ...activePrebuilts];
 }
 
 // Build annotation strings from opening moves
@@ -263,6 +265,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target?.tagName)) return;
       if (e.key === 'ArrowRight') stepForward();
       if (e.key === 'ArrowLeft') stepBack();
       if (e.key === 'Home') resetBoard();
@@ -557,16 +560,6 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                           <div className="flex items-center gap-2 mb-1.5">
                             <span style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '0.6rem', color: active ? '#a8834a' : 'rgba(150,142,130,0.5)', letterSpacing: '0.1em', fontWeight: 600 }}>{opening.eco}</span>
                             {active && <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#6b8cae', flexShrink: 0 }} />}
-                            {opening.isCustom && (
-                              <span
-                                onClick={(e) => handleDeleteCustomRepertoire(e, opening)}
-                                title="Delete repertoire"
-                                className="ml-auto px-1.5 py-0.5 rounded text-[10px] transition-all hover:bg-red-500/20 text-red-400"
-                                style={{ cursor: 'pointer', fontFamily: "'Orbitron', sans-serif" }}
-                              >
-                                🗑 Delete
-                              </span>
-                            )}
                           </div>
                           <div style={{ color: active ? '#fff' : '#cbd5e1', fontWeight: 600, fontSize: '0.85rem', lineHeight: 1.2 }}>{opening.name}</div>
                           <p style={{ color: 'rgba(160,152,138,0.6)', fontSize: '0.7rem', marginTop: '0.35rem', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{opening.description}</p>

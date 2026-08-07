@@ -120,6 +120,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [trainLineFilter, setTrainLineFilter] = useState('all');
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   const [wrongSquare, setWrongSquare] = useState(null); // { from, to } for red X
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // ─── New drill features ───
   const [settings] = useState(() => getSettings()); // sessionCap, dailyNewCap, drillPace, lineWalkEnabled, showHints
@@ -540,6 +541,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target?.tagName)) return;
       if (mode === 'study') {
         if (e.key === 'ArrowRight') studyForward();
         if (e.key === 'ArrowLeft') studyBack();
@@ -565,33 +567,86 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
   // Study arrows (show next move)
   const studyArrows = useMemo(() => {
-    if (mode !== 'study' || studyStep >= studyPath.length - 1) return [];
+    if (!showStudyArrows || mode !== 'study') return [];
+    if (studyLineIdx === 'all') {
+      if (!studyNode || !studyNode.children || studyNode.children.size === 0) return [];
+      const arr = [];
+      let i = 0;
+      for (const child of studyNode.children.values()) {
+        if (child.move && child.move.from && child.move.to) {
+          arr.push({ orig: child.move.from, dest: child.move.to, brush: i === 0 ? 'green' : 'blue' });
+          i++;
+        }
+      }
+      return arr;
+    }
+    if (studyStep >= studyPath.length - 1) return [];
     const nextPos = studyPath[studyStep + 1];
     if (nextPos?.from && nextPos?.to) {
       return [{ orig: nextPos.from, dest: nextPos.to, brush: 'green' }];
     }
     return [];
-  }, [mode, studyStep, studyPath]);
+  }, [showStudyArrows, mode, studyLineIdx, studyNode, studyStep, studyPath]);
 
-  const cgConfig = useMemo(() => ({
-    fen: position,
-    orientation,
-    turnColor,
-    lastMove: lastMove ? [lastMove[0], lastMove[1]] : undefined,
-    coordinates: true,
-    highlight: { lastMove: true, check: true },
-    animation: { enabled: true, duration: 200 },
-    movable: {
-      free: false,
-      dests: isUserTurn ? dests : new Map(),
-      showDests: isUserTurn,
-      color: isUserTurn ? 'both' : undefined,
-      events: { after: handleTrainUserMove },
-    },
-    draggable: { enabled: isUserTurn, showGhost: true },
-    selectable: { enabled: isUserTurn },
-    drawable: { enabled: false, visible: true, autoShapes: [...(studyArrows || []), ...hintShapes] },
-  }), [position, orientation, turnColor, lastMove, dests, isUserTurn, handleTrainUserMove, studyArrows, hintShapes]);
+  const handleStudyUserMove = useCallback((orig, dest) => {
+    if (mode !== 'study') return;
+    clearVisualOverlays();
+    if (studyLineIdx === 'all') {
+      const c = new Chess(position);
+      const m = c.move({ from: orig, to: dest, promotion: 'q' });
+      if (m) {
+        setPosition(c.fen());
+        setLastMove([orig, dest]);
+        setCurrentPath(prev => [...prev, m.san]);
+        if (studyNode && studyNode.children && studyNode.children.has(m.san)) {
+          setStudyNode(studyNode.children.get(m.san));
+        } else {
+          setStudyNode(null);
+        }
+      }
+      return;
+    }
+    const nextStep = studyPath[studyStep + 1];
+    if (nextStep && nextStep.from === orig && nextStep.to === dest) {
+      studyForward();
+      return;
+    }
+    const c = new Chess(position);
+    const m = c.move({ from: orig, to: dest, promotion: 'q' });
+    if (m) {
+      setPosition(c.fen());
+      setLastMove([orig, dest]);
+      setCurrentPath(prev => [...prev, m.san]);
+      const matchIdx = studyPath.findIndex((sp, idx) => idx > 0 && sp.san === m.san && studyPath[idx - 1]?.fen === position);
+      if (matchIdx !== -1) {
+        setStudyStep(matchIdx);
+      }
+    }
+  }, [mode, studyLineIdx, position, studyNode, studyPath, studyStep, studyForward, clearVisualOverlays]);
+
+  const cgConfig = useMemo(() => {
+    const interactive = mode === 'study' || isUserTurn;
+    const destsMap = interactive ? dests : new Map();
+    return {
+      fen: position,
+      orientation,
+      turnColor,
+      lastMove: lastMove ? [lastMove[0], lastMove[1]] : undefined,
+      coordinates: true,
+      highlight: { lastMove: true, check: true },
+      animation: { enabled: true, duration: 200 },
+      movable: {
+        free: false,
+        dests: destsMap,
+        showDests: interactive,
+        color: interactive ? 'both' : undefined,
+        events: { after: mode === 'study' ? handleStudyUserMove : handleTrainUserMove },
+      },
+      draggable: { enabled: interactive, showGhost: true },
+      selectable: { enabled: interactive },
+      drawable: { enabled: false, visible: true, autoShapes: [...(studyArrows || []), ...hintShapes] },
+    };
+  }, [position, orientation, turnColor, lastMove, dests, isUserTurn, mode, handleStudyUserMove, handleTrainUserMove, studyArrows, hintShapes]);
 
   // Study info
   const currentStudyStep = studyPath[studyStep];
@@ -617,8 +672,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
   const handleDeleteRepertoire = useCallback(() => {
     if (!repertoire || !repertoire.id) return;
-    if (!window.confirm(`Are you sure you want to delete "${repertoire.name}"?`)) return;
+    setShowDeleteModal(true);
+  }, [repertoire]);
+
+  const confirmDeleteRepertoire = useCallback(() => {
+    if (!repertoire || !repertoire.id) return;
     deleteRepertoire(repertoire.id);
+    setShowDeleteModal(false);
     onExit();
   }, [repertoire, onExit]);
 
@@ -671,16 +731,6 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
               <button onClick={() => { setMode('train'); chess.reset(); setPosition(chess.fen()); setCurrentPath([]); setLastMove(null); if (tree && allLines.length > 0) startTrainLine(allLines, 0, tree); }} style={modeBtn('train')}>🎯 TRAIN</button>
               <button onClick={() => setSparMode(true)} style={modeBtn('spar')}>⚔ SPAR</button>
               <button onClick={() => setMode('edit')} style={modeBtn('edit')}>✏️ EDIT</button>
-              {repertoire.isCustom && (
-                <button
-                  onClick={handleDeleteRepertoire}
-                  title="Delete Repertoire"
-                  className="px-2.5 py-1 text-xs rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-1 font-orbitron font-semibold"
-                  style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer', letterSpacing: '0.05em' }}
-                >
-                  🗑 DELETE
-                </button>
-              )}
             </div>
             {mode === 'train' && (
               <div className="hidden sm:flex items-center gap-2 text-xs" style={{ color: 'rgba(150,142,130,0.6)' }}>
@@ -769,10 +819,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                     <span className="text-[10px] font-orbitron font-semibold" style={{ color: '#8daac4', letterSpacing: '0.05em' }}>CHAPTER:</span>
                     <select
                       value={studyLineIdx}
-                      onChange={(e) => handleSelectStudyLine(Number(e.target.value))}
+                      onChange={(e) => handleSelectStudyLine(e.target.value)}
                       className="bg-transparent text-xs text-slate-200 outline-none cursor-pointer flex-1 text-right font-medium"
                       style={{ background: '#0a0d18' }}
                     >
+                      <option value="all" style={{ background: '#0a0d18', color: '#cbd5e1' }}>
+                        Whole Repertoire ({allLines.length} lines)
+                      </option>
                       {allLines.map((line, idx) => {
                         const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
                         return (
@@ -793,6 +846,21 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                 {/* Progress */}
                 <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(107,140,174,0.08)' }}>
                   <div className="h-full rounded-full transition-all duration-300" style={{ width: `${studyProgress}%`, background: 'linear-gradient(90deg, #6b8cae, #7a8caa)' }} />
+                </div>
+                {/* Arrows Toggle */}
+                <div className="flex items-center justify-between w-full px-1">
+                  <button
+                    onClick={() => setShowStudyArrows(a => !a)}
+                    className="text-[10px] font-orbitron transition-all hover:scale-105"
+                    style={{ color: showStudyArrows ? '#4ade80' : 'rgba(160,152,138,0.5)', cursor: 'pointer' }}
+                  >
+                    👁 ARROWS: {showStudyArrows ? 'ON' : 'OFF'}
+                  </button>
+                  {studyLineIdx === 'all' && (
+                    <span className="text-[10px] font-orbitron" style={{ color: '#6b8cae' }}>
+                      {studyNode?.children?.size || 0} candidate move(s) in PGN
+                    </span>
+                  )}
                 </div>
                 {/* Navigation */}
                 <div className="flex items-center gap-2">
@@ -851,9 +919,12 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                       <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>CHAPTER / LINE ({studyLineIdx + 1}/{allLines.length})</h3>
                       <select
                         value={studyLineIdx}
-                        onChange={(e) => handleSelectStudyLine(Number(e.target.value))}
+                        onChange={(e) => handleSelectStudyLine(e.target.value)}
                         className="w-full bg-slate-900 text-xs text-slate-200 rounded px-2.5 py-1.5 border border-slate-700 outline-none cursor-pointer"
                       >
+                        <option value="all" style={{ background: '#0a0d18', color: '#cbd5e1' }}>
+                          Whole Repertoire ({allLines.length} lines)
+                        </option>
                         {allLines.map((line, idx) => {
                           const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
                           return (
@@ -893,6 +964,37 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                       {studyPath.length <= 1 && <span className="italic" style={{ color: 'rgba(160,152,138,0.3)' }}>No moves</span>}
                     </div>
                   </div>
+
+                  {studyLineIdx === 'all' && (
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
+                      <h3 className="font-orbitron font-semibold text-[10px] mb-2" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>NEXT MOVES IN REPERTOIRE ({studyNode?.children?.size || 0})</h3>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.from(studyNode?.children?.entries() || []).map(([san, child], i) => (
+                          <button
+                            key={san}
+                            onClick={() => {
+                              setPosition(child.fen);
+                              setLastMove(child.move?.from && child.move?.to ? [child.move.from, child.move.to] : null);
+                              setCurrentPath(prev => [...prev, san]);
+                              setStudyNode(child);
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-xs font-mono transition-all hover:scale-105"
+                            style={{
+                              background: i === 0 ? 'rgba(74,222,128,0.15)' : 'rgba(96,165,250,0.15)',
+                              border: `1px solid ${i === 0 ? 'rgba(74,222,128,0.4)' : 'rgba(96,165,250,0.4)'}`,
+                              color: i === 0 ? '#4ade80' : '#60a5fa',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {san}
+                          </button>
+                        ))}
+                        {(studyNode?.children?.size || 0) === 0 && (
+                          <span className="text-xs italic text-slate-500">End of line in PGN</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Comment / Explanation */}
                   {currentStudyStep?.comment && (
@@ -1064,15 +1166,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                         ⬇ Export PGN
                       </button>
                     </div>
-                    {repertoire.isCustom && (
-                      <button
-                        onClick={handleDeleteRepertoire}
-                        className="w-full px-4 py-2 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold mt-2"
-                        style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer', letterSpacing: '0.08em' }}
-                      >
-                        🗑 Delete Repertoire
-                      </button>
-                    )}
+                    <button
+                      onClick={handleDeleteRepertoire}
+                      className="w-full px-4 py-2 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold mt-2"
+                      style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer', letterSpacing: '0.08em' }}
+                    >
+                      🗑 Delete Repertoire
+                    </button>
                   </div>
 
                   {/* Repertoire info */}
@@ -1161,6 +1261,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
               <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Description" rows={2} className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.15)', color: '#cbd5e1', outline: 'none' }} />
               <button onClick={handleSaveEdit} className="w-full px-3 py-2 text-xs rounded-lg font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>
                 {editSaved ? '✓ Saved' : 'Save'}
+              </button>
+              <button
+                onClick={handleDeleteRepertoire}
+                className="w-full px-3 py-2 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold"
+                style={{ background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#ff8a8a', cursor: 'pointer', letterSpacing: '0.08em' }}
+              >
+                🗑 Delete Repertoire
               </button>
             </div>
           )}

@@ -74,7 +74,9 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
   const [pgnText, setPgnText] = useState('');
   const [importMsg, setImportMsg] = useState('');
   const [saveMsg, setSaveMsg] = useState('');
+  const [deleteMenu, setDeleteMenu] = useState(null);
   const fileRef = useRef(null);
+  const touchTimerRef = useRef(null);
 
   const current = nodeAt(tree, path) || tree;
   const fen = current.fen;
@@ -154,6 +156,16 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
     setPath(parentPath);
     setTree({ ...tree }); // trigger re-render
   };
+
+  const handleDeletePath = useCallback((targetPath) => {
+    if (!targetPath || targetPath.length === 0) return;
+    const parentPath = targetPath.slice(0, -1);
+    const parent = nodeAt(tree, parentPath);
+    if (!parent) return;
+    parent.children.delete(targetPath[targetPath.length - 1]);
+    setPath(parentPath);
+    setTree({ ...tree });
+  }, [tree]);
 
   const movesList = useMemo(() => flattenTree(tree), [tree]);
   const positionCount = countPositions(tree) - 1;
@@ -288,10 +300,10 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
           </div>
 
           {/* Move list */}
-          <div className="rounded-xl p-3" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
+          <div className="rounded-xl p-3 relative" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>MOVES ({positionCount})</h3>
-              {path.length > 0 && <span className="text-[10px]" style={{ color:'#8daac4' }}>{path.length} ply deep</span>}
+              <span className="text-[9px]" style={{ color:'rgba(160,152,138,0.4)' }}>Right-click / hold move to delete</span>
             </div>
             {movesList.length === 0 ? (
               <p className="text-xs italic" style={{ color:'rgba(160,152,138,0.3)' }}>No moves yet. Play on the board or import a PGN.</p>
@@ -300,20 +312,73 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
                 {movesList.map((m) => {
                   const isOnPath = path.length >= m.path.length && path.slice(0, m.path.length).join(' ') === m.path.join(' ');
                   const isCurrent = m.path.join(' ') === path.join(' ');
+                  const moveNum = Math.floor((m.path.length - 1) / 2) + 1;
+                  const prefix = m.path.length % 2 === 1 ? `${moveNum}. ` : (m.isVariation ? `${moveNum}... ` : '');
                   return (
-                    <button key={m.path.join(' ')} onClick={()=>goTo(m.path)} className="text-left px-2 py-1 rounded transition-colors hover:bg-[rgba(107,140,174,0.12)]" style={{
-                      color: isCurrent ? '#fff' : isOnPath ? '#8daac4' : 'rgba(160,152,138,0.5)',
-                      fontWeight: isCurrent ? 700 : 400,
-                      background: isCurrent ? 'rgba(107,140,174,0.18)' : 'transparent',
-                      paddingLeft: `${10 + (m.path.length - 1) * 12}px`,
-                    }}>
-                      {m.san}
+                    <button
+                      key={m.path.join(' ')}
+                      onClick={() => goTo(m.path)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setDeleteMenu({ x: e.clientX, y: e.clientY, path: m.path, san: m.san });
+                      }}
+                      onTouchStart={(e) => {
+                        const touch = e.touches[0];
+                        touchTimerRef.current = setTimeout(() => {
+                          setDeleteMenu({ x: touch.clientX, y: touch.clientY, path: m.path, san: m.san });
+                        }, 500);
+                      }}
+                      onTouchEnd={() => {
+                        if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+                      }}
+                      className="text-left px-2 py-1 rounded transition-colors hover:bg-[rgba(107,140,174,0.12)] flex items-center justify-between group"
+                      style={{
+                        color: isCurrent ? '#fff' : isOnPath ? '#8daac4' : 'rgba(160,152,138,0.5)',
+                        fontWeight: isCurrent ? 700 : 400,
+                        background: isCurrent ? 'rgba(107,140,174,0.18)' : 'transparent',
+                        paddingLeft: `${10 + (m.path.length - 1) * 12}px`,
+                      }}
+                    >
+                      <span>
+                        {prefix && <span style={{ color: 'rgba(160,152,138,0.35)', marginRight: 2 }}>{prefix}</span>}
+                        {m.san}
+                      </span>
                     </button>
                   );
                 })}
               </div>
             )}
           </div>
+
+          {/* Right-click delete pop-up menu */}
+          {deleteMenu && (
+            <div
+              className="fixed z-50 rounded-xl py-2 px-3 shadow-2xl font-orbitron text-xs flex items-center gap-2"
+              style={{
+                top: Math.min(deleteMenu.y, window.innerHeight - 60),
+                left: Math.min(deleteMenu.x, window.innerWidth - 220),
+                background: 'rgba(10,13,28,0.98)',
+                border: '1px solid rgba(255,107,107,0.5)',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.8)',
+              }}
+            >
+              <button
+                onClick={() => {
+                  handleDeletePath(deleteMenu.path);
+                  setDeleteMenu(null);
+                }}
+                className="text-red-400 hover:text-red-300 font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>🗑</span> Delete "{deleteMenu.san}" (from here)
+              </button>
+              <button
+                onClick={() => setDeleteMenu(null)}
+                className="text-slate-400 hover:text-white px-1 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {/* Save */}
           <div className="flex gap-2">

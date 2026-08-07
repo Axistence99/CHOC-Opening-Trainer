@@ -54,12 +54,25 @@ export function updateRepertoire(id, updates) {
   return repertoires;
 }
 
+export function getDeletedOpenings() {
+  try {
+    const data = localStorage.getItem('chess-trainer-deleted-openings');
+    return data ? JSON.parse(data) : [];
+  } catch { return []; }
+}
+
 /**
  * Delete a repertoire by id
  */
 export function deleteRepertoire(id) {
   const repertoires = getRepertoires().filter(r => r.id !== id);
   saveRepertoires(repertoires);
+  const del = getDeletedOpenings();
+  const idsToAdd = [id, id.replace(/^opening-/, ''), `opening-${id.replace(/^opening-/, '')}`];
+  for (const x of idsToAdd) {
+    if (!del.includes(x)) del.push(x);
+  }
+  try { localStorage.setItem('chess-trainer-deleted-openings', JSON.stringify(del)); } catch {}
   return repertoires;
 }
 
