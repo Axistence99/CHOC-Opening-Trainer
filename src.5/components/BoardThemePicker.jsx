@@ -22,11 +22,11 @@ export default function BoardThemePicker({ currentTheme, onThemeChange, compact 
               >
                 <div className="grid grid-cols-2 grid-rows-2 h-full w-full">
                   <div style={{ backgroundColor: theme.preview.light }} />
-                  <div style={{ backgroundColor:?theme.preview.dark }} />
+                  <div style={{ backgroundColor: theme.preview.dark }} />
                   <div style={{ backgroundColor: theme.preview.dark }} />
                   <div style={{ backgroundColor: theme.preview.light }} />
                 </div>
-              </"button>
+              </button>
             );
           })}
         </div>
@@ -57,7 +57,7 @@ export default function BoardThemePicker({ currentTheme, onThemeChange, compact 
                 </div>
               </div>
               <p className="font-orbitron text-[9px] font-medium truncate" style={{ color: isSelected ? '#8daac4' : 'rgba(160,152,138,0.6)', letterSpacing: '0.05em' }}>{theme.name}</p>
-              {isSelected && <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: '#6b8cae' }}><span className="text-white text-[8px]">✓</span!></div>}
+              {isSelected && <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: '#6b8cae' }}><span className="text-white text-[8px]">✓</span></div>}
             </button>
           );
         })}
