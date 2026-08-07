@@ -96,6 +96,66 @@ function formatMoveNotation(moves, upToIndex) {
   return parts.join(' ');
 }
 
+function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, isRoot = true }) {
+  if (!node || !node.children || node.children.size === 0) return null;
+  const entries = Array.from(node.children.entries());
+  if (entries.length === 0) return null;
+  const [mainSan, mainChild] = entries[0];
+  const mainPath = [...pathSoFar, mainSan];
+  const isMainCurrent = currentPath.join(' ') === mainPath.join(' ');
+  const depth = mainChild.depth;
+  const moveNum = Math.floor((depth - 1) / 2) + 1;
+  const prefix = depth % 2 === 1 ? `${moveNum}. ` : (depth === 2 || isRoot ? `${moveNum}... ` : '');
+
+  return (
+    <span className="inline">
+      {prefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{prefix}</span>}
+      <span
+        onClick={() => onSelectNode && onSelectNode(mainPath, mainChild)}
+        className="cursor-pointer transition-colors hover:text-white"
+        style={{
+          color: isMainCurrent ? '#fff' : '#8daac4',
+          fontWeight: isMainCurrent ? 700 : 400,
+          background: isMainCurrent ? 'rgba(107,140,174,0.25)' : 'transparent',
+          padding: '1px 3px',
+          borderRadius: 3,
+        }}
+      >
+        {mainSan}
+      </span>{' '}
+      <PGNTreeView node={mainChild} currentPath={currentPath} pathSoFar={mainPath} onSelectNode={onSelectNode} isRoot={false} />
+      {entries.slice(1).map(([varSan, varChild]) => {
+        const varPath = [...pathSoFar, varSan];
+        const isVarCurrent = currentPath.join(' ') === varPath.join(' ');
+        const vDepth = varChild.depth;
+        const vMoveNum = Math.floor((vDepth - 1) / 2) + 1;
+        const vPrefix = vDepth % 2 === 1 ? `${vMoveNum}. ` : `${vMoveNum}... `;
+        return (
+          <span key={varPath.join(' ')} className="inline">
+            <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>(</span>
+            {vPrefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{vPrefix}</span>}
+            <span
+              onClick={() => onSelectNode && onSelectNode(varPath, varChild)}
+              className="cursor-pointer transition-colors hover:text-white"
+              style={{
+                color: isVarCurrent ? '#fff' : '#fbbf24',
+                fontWeight: isVarCurrent ? 700 : 400,
+                background: isVarCurrent ? 'rgba(107,140,174,0.25)' : 'transparent',
+                padding: '1px 3px',
+                borderRadius: 3,
+              }}
+            >
+              {varSan}
+            </span>{' '}
+            <PGNTreeView node={varChild} currentPath={currentPath} pathSoFar={varPath} onSelectNode={onSelectNode} isRoot={false} />
+            <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>)</span>{' '}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoardThemeChange, onRepertoireUpdate }) {
   const [mode, setMode] = useState('study'); // 'study' | 'train' | 'edit'
   const [chess] = useState(() => new Chess());
@@ -110,6 +170,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [studyStep, setStudyStep] = useState(0);
   const [studyLineIdx, setStudyLineIdx] = useState(0);
   const [studyPath, setStudyPath] = useState([]);
+  const [showStudyArrows, setShowStudyArrows] = useState(true);
+  const [studyNode, setStudyNode] = useState(null);
 
   // Train state
   const [trainStatus, setTrainStatus] = useState('waiting'); // waiting | user_turn | correct | wrong | complete
@@ -191,6 +253,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setStudyPath(sp);
     setStudyStep(0);
     setStudyLineIdx(0);
+    setStudyNode(parsedTree);
 
     chess.reset();
     setPosition(chess.fen());
@@ -556,8 +619,6 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     return () => window.removeEventListener('keydown', handler);
   }, [mode, studyForward, studyBack, studyReset, studyEnd, handleShowHint, clearHints, trainStatus]);
 
-  if (!repertoire) return null;
-
   // Board config
   const themeObj = getBoardTheme(boardTheme);
   const boardBg = getBoardThemeBackground(boardTheme);
@@ -681,6 +742,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setShowDeleteModal(false);
     onExit();
   }, [repertoire, onExit]);
+
+  if (!repertoire) return null;
 
   // ─── SPARRING MODE ───
   if (sparMode) {
