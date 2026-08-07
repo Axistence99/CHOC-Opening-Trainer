@@ -373,8 +373,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         const ne = new Map();
         for (const [s, c] of nn.children.entries()) ne.set(s, c);
         setExpectedMoves(ne);
-        const tw = chess.turn() === 'w';
-        const iu = (isUserWhite && tw) || (!isUserWhite && !tw);
+        const iu = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
         if (iu && ne.size > 0) {
           setTrainStatus('user_turn');
           setTrainMessage('Your turn — play the correct move');
@@ -447,8 +446,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             const ne = new Map();
             for (const [s, c] of nn.children.entries()) ne.set(s, c);
             setExpectedMoves(ne);
-            const tw2 = chess.turn() === 'w';
-            const iu2 = (isUserWhite && tw2) || (!isUserWhite && !tw2);
+            const iu2 = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
             if (iu2 && ne.size > 0) {
               setTrainStatus('user_turn');
               setTrainMessage('Your turn — play the correct move');
