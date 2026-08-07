@@ -195,6 +195,9 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [currentBoardTheme, setCurrentBoardTheme] = useState(boardTheme || 'space');
+  useEffect(() => {
+    if (boardTheme) setCurrentBoardTheme(boardTheme);
+  }, [boardTheme]);
   const [pieceSet, setPieceSetRaw] = useState(getSavedPieceSet);
   const [pieceSetReady, setPieceSetReady] = useState(true); // false while preloading
   const setPieceSet = useCallback((key) => {
