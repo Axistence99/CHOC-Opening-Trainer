@@ -227,7 +227,11 @@ export function tokenizePGN(gameSegment) {
       }
       continue;
     }
-    tok = tok.replace(/^\d+\.\.\./, '').replace(/^\d+\./, '');
+    tok = tok
+      .replace(/^\d+(\.\.\.|\.+)/, '')
+      .replace(/^(\.\.\.|\.+)/, '')
+      .replace(/(\.\.\.|\.+)$/, '')
+      .replace(/[,;]+$/, '');
     if (!tok) continue;
     let extractedGlyph = null;
     const glyphMatch = tok.match(/([!?]+)$/);
@@ -257,6 +261,45 @@ function findNodeByFen(node, targetFen) {
 }
 
 /**
+ * Sanitize and repair malformed or truncated FEN strings (e.g. from Lichess studies
+ * where rank square counts are short by 1 empty square like RNBQK1R instead of RNBQK2R).
+ */
+export function sanitizeFen(fen) {
+  if (!fen || typeof fen !== 'string') return null;
+  const parts = fen.trim().split(/\s+/);
+  if (parts.length < 1) return fen;
+  const board = parts[0];
+  const ranks = board.split('/');
+  if (ranks.length !== 8) return fen;
+  const fixedRanks = ranks.map(rank => {
+    let count = 0;
+    for (const char of rank) {
+      if (/[1-8]/.test(char)) count += parseInt(char, 10);
+      else count += 1;
+    }
+    if (count === 8) return rank;
+    if (count < 8) {
+      const diff = 8 - count;
+      if (/[1-8]/.test(rank)) {
+        return rank.replace(/([1-8])/, (match) => String(parseInt(match, 10) + diff));
+      } else {
+        return rank + String(diff);
+      }
+    }
+    return rank;
+  });
+  parts[0] = fixedRanks.join('/');
+  while (parts.length < 6) {
+    if (parts.length === 1) parts.push('w');
+    else if (parts.length === 2) parts.push('-');
+    else if (parts.length === 3) parts.push('-');
+    else if (parts.length === 4) parts.push('0');
+    else if (parts.length === 5) parts.push('1');
+  }
+  return parts.join(' ');
+}
+
+/**
  * Parse PGN into a tree structure suitable for training
  * Each node represents a position and its children are possible next moves
  * Supports variations in parentheses ( ... ) skillfully.
@@ -282,7 +325,8 @@ export function parsePGNToTree(pgn) {
     let startFen = root.fen;
     if (game.fen) {
       try {
-        const testChess = new Chess(game.fen);
+        const cleanedFen = sanitizeFen(game.fen);
+        const testChess = new Chess(cleanedFen);
         const tFen = testChess.fen();
         const existing = findNodeByFen(root, tFen);
         if (existing) {
@@ -300,7 +344,11 @@ export function parsePGNToTree(pgn) {
       }
     }
 
-    const stack = [{ node: startNode, chess: new Chess(startFen) }];
+    const stack = [{
+      node: startNode,
+      chess: new Chess(startFen),
+      parent: { node: startNode, fen: startFen },
+    }];
     let parent = { node: startNode, fen: startFen };
 
     for (const tok of tokens) {
@@ -308,11 +356,16 @@ export function parsePGNToTree(pgn) {
         stack.push({
           node: parent.node,
           chess: new Chess(parent.fen),
+          parent: { node: parent.node, fen: parent.fen },
         });
         continue;
       } else if (tok === ')') {
         if (stack.length > 1) {
           stack.pop();
+          const top = stack[stack.length - 1];
+          if (top && top.parent) {
+            parent = top.parent;
+          }
         }
         continue;
       } else if (typeof tok === 'object' && tok.comment) {
@@ -340,6 +393,7 @@ export function parsePGNToTree(pgn) {
       if (!moveResult) continue;
 
       parent = { node: current.node, fen: beforeFen };
+      current.parent = parent;
 
       const canonicalSan = moveResult.san || tok;
       if (!current.node.children.has(canonicalSan)) {
