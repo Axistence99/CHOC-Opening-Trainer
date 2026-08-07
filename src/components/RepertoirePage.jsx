@@ -242,11 +242,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // Initialize tree from repertoire
   useEffect(() => {
     if (!repertoire) return;
-    // Defensive: a tree loaded from localStorage has Map->{} corruption, so only
-    // trust repertoire.tree if its children are a real Map; otherwise rebuild from PGN.
-    const storedTree = repertoire.tree;
-    const validTree = storedTree && storedTree.children instanceof Map ? storedTree : null;
-    const parsedTree = validTree || parsePGNToTree(repertoire.pgn);
+    // Always parse from PGN so any stale/broken tree objects from older saves are ignored.
+    const parsedTree = parsePGNToTree(repertoire.pgn);
     setTree(parsedTree);
     setCurrentNode(parsedTree);
     setOrientation(repertoire.color === 'black' ? 'black' : 'white');
@@ -500,7 +497,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             setTrainStatus('complete');
             setTrainMessage('✅ Line complete!');
           }
-        }, 300);
+        }, 150);
       }
     } else {
       // ❌ WRONG — show red X, then rewind with animation
