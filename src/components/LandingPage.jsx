@@ -541,7 +541,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
                 {filteredOpenings.map((opening, idx) => {
                   const active = opening.id === activeOpening.id;
                   return (
-                    <button key={opening.id} onClick={() => { resetToOpening(opening); setSidebarOpen(false); handlePractice(opening); }} className="w-full text-left rounded-xl p-3.5 transition-all duration-200 hover:scale-[1.01]" style={{ background: active ? 'linear-gradient(135deg, rgba(37,99,235,0.3), rgba(100,95,140,0.15))' : 'rgba(15,20,40,0.6)', border: active ? '1px solid rgba(107,140,174,0.35)' : '1px solid rgba(107,140,174,0.08)', boxShadow: active ? '0 0 20px rgba(107,140,174,0.12), inset 0 1px 0 rgba(255,255,255,0.05)' : 'none', cursor: 'pointer' }}>
+                    <button key={opening.id} onClick={() => { resetToOpening(opening); handlePractice(opening); }} className="w-full text-left rounded-xl p-3.5 transition-all duration-200 hover:scale-[1.01]" style={{ background: active ? 'linear-gradient(135deg, rgba(37,99,235,0.3), rgba(100,95,140,0.15))' : 'rgba(15,20,40,0.6)', border: active ? '1px solid rgba(107,140,174,0.35)' : '1px solid rgba(107,140,174,0.08)', boxShadow: active ? '0 0 20px rgba(107,140,174,0.12), inset 0 1px 0 rgba(255,255,255,0.05)' : 'none', cursor: 'pointer' }}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5">
