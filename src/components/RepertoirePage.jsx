@@ -21,6 +21,25 @@ function computeDests(fen) {
   } catch { return new Map(); }
 }
 
+function executeMoveSafe(chessInstance, moveSan, nodeObject) {
+  if (!chessInstance) return null;
+  try {
+    const res = chessInstance.move(moveSan);
+    if (res) return res;
+  } catch {}
+  if (nodeObject && nodeObject.move && nodeObject.move.from && nodeObject.move.to) {
+    try {
+      const res = chessInstance.move({
+        from: nodeObject.move.from,
+        to: nodeObject.move.to,
+        promotion: nodeObject.move.promotion || 'q',
+      });
+      if (res) return res;
+    } catch {}
+  }
+  return null;
+}
+
 // Pick opponent move skillfully: prefer moves where user has an available response in recorded PGN
 function pickOpponentMove(expectedMap) {
   const allMoves = Array.from(expectedMap.keys());
@@ -350,25 +369,35 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setTrainMessage('Your turn — play the correct move');
     } else if (expected.size > 0) {
       // Computer responds immediately
-      const rm = pickOpponentMove(expected);
-      const move = rm ? chess.move(rm) : null;
-      if (move) {
-        setPosition(chess.fen());
-        setCurrentPath(prev => [...prev, rm]);
-        setLastMove([move.from, move.to]);
-        const nn = expected.get(rm);
-        setCurrentNode(nn);
+      let currentExpected = expected;
+      let currentIsUserTurn = isUserTurn;
+      let lastM = null;
+      let lastRM = null;
+      let lastNN = node;
+      while (!currentIsUserTurn && currentExpected && currentExpected.size > 0) {
+        const rm = pickOpponentMove(currentExpected);
+        if (!rm) break;
+        const nn = currentExpected.get(rm);
+        const move = executeMoveSafe(chess, rm, nn);
+        if (!move) break;
+        lastRM = rm;
+        lastM = move;
+        lastNN = nn;
         const ne = new Map();
         for (const [s, c] of nn.children.entries()) ne.set(s, c);
-        setExpectedMoves(ne);
-        const iu = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
-        if (iu && ne.size > 0) {
-          setTrainStatus('user_turn');
-          setTrainMessage('Your turn — play the correct move');
-        } else if (ne.size === 0) {
-          setTrainStatus('complete');
-          setTrainMessage('✅ Line complete!');
-        }
+        currentExpected = ne;
+        currentIsUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
+      }
+      setPosition(chess.fen());
+      if (lastM && lastRM) {
+        setCurrentPath(prev => [...prev, lastRM]);
+        setLastMove([lastM.from, lastM.to]);
+      }
+      setCurrentNode(lastNN);
+      setExpectedMoves(currentExpected);
+      if (currentIsUserTurn && currentExpected && currentExpected.size > 0) {
+        setTrainStatus('user_turn');
+        setTrainMessage('Your turn — play the correct move');
       } else {
         setTrainStatus('complete');
         setTrainMessage('✅ Line complete!');
@@ -426,25 +455,35 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         // Computer auto-responds with book move
         setTrainMessage('✓ Correct!');
         setTimeout(() => {
-          const rm = pickOpponentMove(newExpected);
-          const move = rm ? chess.move(rm) : null;
-          if (move) {
-            setPosition(chess.fen());
-            setCurrentPath(prev => [...prev, rm]);
-            setLastMove([move.from, move.to]);
-            const nn = newExpected.get(rm);
-            setCurrentNode(nn);
+          let currentExpected = newExpected;
+          let currentIsUserTurn = isUserTurn;
+          let lastM = null;
+          let lastRM = null;
+          let lastNN = nextNode;
+          while (!currentIsUserTurn && currentExpected && currentExpected.size > 0) {
+            const rm = pickOpponentMove(currentExpected);
+            if (!rm) break;
+            const nn = currentExpected.get(rm);
+            const move = executeMoveSafe(chess, rm, nn);
+            if (!move) break;
+            lastRM = rm;
+            lastM = move;
+            lastNN = nn;
             const ne = new Map();
             for (const [s, c] of nn.children.entries()) ne.set(s, c);
-            setExpectedMoves(ne);
-            const iu2 = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
-            if (iu2 && ne.size > 0) {
-              setTrainStatus('user_turn');
-              setTrainMessage('Your turn — play the correct move');
-            } else if (ne.size === 0) {
-              setTrainStatus('complete');
-              setTrainMessage('✅ Line complete!');
-            }
+            currentExpected = ne;
+            currentIsUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
+          }
+          setPosition(chess.fen());
+          if (lastM && lastRM) {
+            setCurrentPath(prev => [...prev, lastRM]);
+            setLastMove([lastM.from, lastM.to]);
+          }
+          setCurrentNode(lastNN);
+          setExpectedMoves(currentExpected);
+          if (currentIsUserTurn && currentExpected && currentExpected.size > 0) {
+            setTrainStatus('user_turn');
+            setTrainMessage('Your turn — play the correct move');
           } else {
             setTrainStatus('complete');
             setTrainMessage('✅ Line complete!');

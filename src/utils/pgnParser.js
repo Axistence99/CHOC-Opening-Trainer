@@ -190,7 +190,7 @@ export function extractGameSegments(pgn) {
  * Tokenize a single game's move text into an array of SAN move strings
  * and variation brackets '(' and ')', skipping move numbers and result markers.
  */
-function tokenizePGN(gameSegment) {
+export function tokenizePGN(gameSegment) {
   let text = String(gameSegment || '').trim();
   text = text.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ');
   const rawTokens = text.split(/\s+/);
