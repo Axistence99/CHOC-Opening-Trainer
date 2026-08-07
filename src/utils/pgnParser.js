@@ -311,16 +311,17 @@ export function parsePGNToTree(pgn) {
 
       parent = { node: current.node, fen: beforeFen };
 
-      if (!current.node.children.has(tok)) {
-        current.node.children.set(tok, {
+      const canonicalSan = moveResult.san || tok;
+      if (!current.node.children.has(canonicalSan)) {
+        current.node.children.set(canonicalSan, {
           fen: current.chess.fen(),
           move: moveResult,
-          moveSan: tok,
+          moveSan: canonicalSan,
           children: new Map(),
           depth: current.node.depth + 1,
         });
       }
-      const childNode = current.node.children.get(tok);
+      const childNode = current.node.children.get(canonicalSan);
       current.node = childNode;
 
       // Ensure turn color tag is attached so training mode knows whose turn it is

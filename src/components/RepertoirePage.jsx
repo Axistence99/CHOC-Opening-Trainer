@@ -40,6 +40,17 @@ function executeMoveSafe(chessInstance, moveSan, nodeObject) {
   return null;
 }
 
+function findExpectedNode(expectedMovesMap, san, orig, dest) {
+  if (!expectedMovesMap || expectedMovesMap.size === 0) return null;
+  if (expectedMovesMap.has(san)) return { san, node: expectedMovesMap.get(san) };
+  for (const [keySan, childNode] of expectedMovesMap.entries()) {
+    if (childNode?.move?.from === orig && childNode?.move?.to === dest) {
+      return { san: keySan, node: childNode };
+    }
+  }
+  return null;
+}
+
 // Pick opponent move skillfully: prefer moves where user has an available response in recorded PGN
 function pickOpponentMove(expectedMap) {
   const allMoves = Array.from(expectedMap.keys());
@@ -442,10 +453,12 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     if (!moveResult) return;
 
     const san = moveResult.san;
-    if (expectedMoves.has(san)) {
+    const matched = findExpectedNode(expectedMoves, san, orig, dest);
+    if (matched) {
+      const { san: matchedSan, node: nextNode } = matched;
       // ✅ CORRECT
       setPosition(chess.fen());
-      setCurrentPath(prev => [...prev, san]);
+      setCurrentPath(prev => [...prev, matchedSan]);
       setLastMove([orig, dest]);
       setWrongSquare(null);
       setTrainStatus('correct');
@@ -459,7 +472,6 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       handleSessionProgress();
       bumpDailyCount();
 
-      const nextNode = expectedMoves.get(san);
       setCurrentNode(nextNode);
       const newExpected = new Map();
       for (const [s, child] of nextNode.children.entries()) newExpected.set(s, child);
