@@ -1018,10 +1018,10 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                       </select>
                     </div>
                   )}
-                  {/* Move notation list — Always show Whole PGN with annotations & variations */}
-                  <div className="rounded-xl p-3" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
-                    <h3 className="font-orbitron font-semibold text-[10px] mb-2" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>WHOLE PGN & ANNOTATIONS</h3>
-                    <div className="leading-relaxed whitespace-normal font-mono text-xs p-1">
+                  {/* Move notation list — Scrollable box so it never stretches the whole study page */}
+                  <div className="rounded-xl p-3 flex flex-col max-h-[45vh]" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
+                    <h3 className="font-orbitron font-semibold text-[10px] mb-2 shrink-0" style={{ color: 'rgba(150,142,130,0.5)', letterSpacing: '0.1em' }}>WHOLE PGN & ANNOTATIONS</h3>
+                    <div className="leading-relaxed whitespace-normal font-mono text-xs p-1.5 overflow-y-auto overflow-x-hidden min-h-0 flex-1 pr-1" style={{ maxHeight: '360px' }}>
                       <PGNTreeView
                         node={tree}
                         currentPath={currentPath}
