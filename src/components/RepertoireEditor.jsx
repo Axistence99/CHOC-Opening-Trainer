@@ -60,6 +60,100 @@ function sanWithNum(san, depth) {
   return depth % 2 === 1 ? `${moveNum}. ${san}` : `${moveNum}... ${san}`;
 }
 
+function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContextMenuMove, isRoot = true }) {
+  if (!node || !node.children || node.children.size === 0) return null;
+  const entries = Array.from(node.children.entries());
+  if (entries.length === 0) return null;
+  const [mainSan, mainChild] = entries[0];
+  const mainPath = [...pathSoFar, mainSan];
+  const isMainCurrent = currentPath.join(' ') === mainPath.join(' ');
+  const depth = mainChild.depth;
+  const moveNum = Math.floor((depth - 1) / 2) + 1;
+  const prefix = depth % 2 === 1 ? `${moveNum}. ` : (depth === 2 || isRoot ? `${moveNum}... ` : '');
+
+  return (
+    <span className="inline">
+      {prefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{prefix}</span>}
+      <span
+        onClick={() => onSelectNode && onSelectNode(mainPath, mainChild)}
+        onContextMenu={(e) => {
+          if (onContextMenuMove) {
+            e.preventDefault();
+            onContextMenuMove(e, mainPath, mainSan);
+          }
+        }}
+        onTouchStart={(e) => {
+          if (onContextMenuMove) {
+            const touch = e.touches[0];
+            e.currentTarget._touchTimer = setTimeout(() => {
+              onContextMenuMove(e, mainPath, mainSan, touch.clientX, touch.clientY);
+            }, 500);
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
+        }}
+        className="cursor-pointer transition-colors hover:text-white"
+        style={{
+          color: isMainCurrent ? '#fff' : '#8daac4',
+          fontWeight: isMainCurrent ? 700 : 400,
+          background: isMainCurrent ? 'rgba(107,140,174,0.25)' : 'transparent',
+          padding: '1px 3px',
+          borderRadius: 3,
+        }}
+      >
+        {mainSan}
+      </span>{' '}
+      <PGNTreeView node={mainChild} currentPath={currentPath} pathSoFar={mainPath} onSelectNode={onSelectNode} onContextMenuMove={onContextMenuMove} isRoot={false} />
+      {entries.slice(1).map(([varSan, varChild]) => {
+        const varPath = [...pathSoFar, varSan];
+        const isVarCurrent = currentPath.join(' ') === varPath.join(' ');
+        const vDepth = varChild.depth;
+        const vMoveNum = Math.floor((vDepth - 1) / 2) + 1;
+        const vPrefix = vDepth % 2 === 1 ? `${vMoveNum}. ` : `${vMoveNum}... `;
+        return (
+          <span key={varPath.join(' ')} className="inline">
+            <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>(</span>
+            {vPrefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{vPrefix}</span>}
+            <span
+              onClick={() => onSelectNode && onSelectNode(varPath, varChild)}
+              onContextMenu={(e) => {
+                if (onContextMenuMove) {
+                  e.preventDefault();
+                  onContextMenuMove(e, varPath, varSan);
+                }
+              }}
+              onTouchStart={(e) => {
+                if (onContextMenuMove) {
+                  const touch = e.touches[0];
+                  e.currentTarget._touchTimer = setTimeout(() => {
+                    onContextMenuMove(e, varPath, varSan, touch.clientX, touch.clientY);
+                  }, 500);
+                }
+              }}
+              onTouchEnd={(e) => {
+                if (e.currentTarget._touchTimer) clearTimeout(e.currentTarget._touchTimer);
+              }}
+              className="cursor-pointer transition-colors hover:text-white"
+              style={{
+                color: isVarCurrent ? '#fff' : '#fbbf24',
+                fontWeight: isVarCurrent ? 700 : 400,
+                background: isVarCurrent ? 'rgba(107,140,174,0.25)' : 'transparent',
+                padding: '1px 3px',
+                borderRadius: 3,
+              }}
+            >
+              {varSan}
+            </span>{' '}
+            <PGNTreeView node={varChild} currentPath={currentPath} pathSoFar={varPath} onSelectNode={onSelectNode} onContextMenuMove={onContextMenuMove} isRoot={false} />
+            <span style={{ color: 'rgba(234,179,8,0.7)', fontWeight: 700, margin: '0 2px' }}>)</span>{' '}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
   const [tree, setTree] = useState(() => {
     const t = makeNode();
@@ -308,44 +402,15 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
             {movesList.length === 0 ? (
               <p className="text-xs italic" style={{ color:'rgba(160,152,138,0.3)' }}>No moves yet. Play on the board or import a PGN.</p>
             ) : (
-              <div className="flex flex-col gap-0.5 font-mono text-xs">
-                {movesList.map((m) => {
-                  const isOnPath = path.length >= m.path.length && path.slice(0, m.path.length).join(' ') === m.path.join(' ');
-                  const isCurrent = m.path.join(' ') === path.join(' ');
-                  const moveNum = Math.floor((m.path.length - 1) / 2) + 1;
-                  const prefix = m.path.length % 2 === 1 ? `${moveNum}. ` : (m.isVariation ? `${moveNum}... ` : '');
-                  return (
-                    <button
-                      key={m.path.join(' ')}
-                      onClick={() => goTo(m.path)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setDeleteMenu({ x: e.clientX, y: e.clientY, path: m.path, san: m.san });
-                      }}
-                      onTouchStart={(e) => {
-                        const touch = e.touches[0];
-                        touchTimerRef.current = setTimeout(() => {
-                          setDeleteMenu({ x: touch.clientX, y: touch.clientY, path: m.path, san: m.san });
-                        }, 500);
-                      }}
-                      onTouchEnd={() => {
-                        if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
-                      }}
-                      className="text-left px-2 py-1 rounded transition-colors hover:bg-[rgba(107,140,174,0.12)] flex items-center justify-between group"
-                      style={{
-                        color: isCurrent ? '#fff' : isOnPath ? '#8daac4' : 'rgba(160,152,138,0.5)',
-                        fontWeight: isCurrent ? 700 : 400,
-                        background: isCurrent ? 'rgba(107,140,174,0.18)' : 'transparent',
-                        paddingLeft: `${10 + (m.path.length - 1) * 12}px`,
-                      }}
-                    >
-                      <span>
-                        {prefix && <span style={{ color: 'rgba(160,152,138,0.35)', marginRight: 2 }}>{prefix}</span>}
-                        {m.san}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="leading-relaxed whitespace-normal font-mono text-xs p-1">
+                <PGNTreeView
+                  node={tree}
+                  currentPath={path}
+                  onSelectNode={(p) => goTo(p)}
+                  onContextMenuMove={(e, p, san) => {
+                    setDeleteMenu({ x: e.clientX || 100, y: e.clientY || 100, path: p, san });
+                  }}
+                />
               </div>
             )}
           </div>
