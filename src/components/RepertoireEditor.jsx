@@ -301,7 +301,7 @@ export default function RepertoireEditor({ boardTheme, onExit, onSave }) {
     onSave(rep);
   };
 
-  const boardBg = getBoardThemeBackground(boardTheme);
+  const boardBg = getBoardThemeBackground(boardTheme || 'space');
   const boardSize = 'min(calc(100vw - 40px), calc(100vh - 200px), 520px)';
 
   const cgConfig = useMemo(() => ({
