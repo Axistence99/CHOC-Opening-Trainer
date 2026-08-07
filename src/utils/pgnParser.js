@@ -167,7 +167,6 @@ export function extractGameSegments(pgn) {
       .replace(/\[[^\]]*\]/g, ' ')
       .replace(/;[^\n]*/g, ' ')
       .replace(/\$\d+/g, ' ')
-      .replace(/\b(?:1-0|0-1|1\/2-1\/2|½-½)\b|\*/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
     if (!cleaned) continue;
