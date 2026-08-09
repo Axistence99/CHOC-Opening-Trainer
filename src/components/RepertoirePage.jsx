@@ -162,11 +162,6 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, isRoot =
 
   return (
     <span className="inline">
-      {isRoot && node.comment && (
-        <span className="block text-[11px] italic my-1 p-2 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)', borderLeft: '2px solid #6b8cae' }}>
-          {node.comment}
-        </span>
-      )}
       {entries.map(([san, child], i) => {
         const path = [...pathSoFar, san];
         const isCurrent = currentPath.join(' ') === path.join(' ');

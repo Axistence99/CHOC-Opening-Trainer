@@ -145,10 +145,8 @@ const PREBUILT_REPERTOIRES = [
     id: 'catalan-white',
     name: 'Catalan for White',
     color: 'white',
-    description: 'A complete Catalan repertoire for White. Covers Open Catalan (Qc2, Ne5, a6 lines), Closed Catalan (e4 plans), and responses to KID, Slav, QID, Tarrasch, Dutch, Benoni, and Grünfeld. Based on the Lichess study by cokeaxistence.',
+    description: 'A complete Catalan repertoire for White. The Catalan is not a system — it is very complex and theory based, but if White plays accurately they will have a small yet lingering advantage and usually a better pawn structure. Not aggressive but very positional. If you like endgames, this opening is for you. Covers Open Catalan, Closed Catalan, and responses to KID, Slav, QID, Tarrasch, Dutch, Benoni, and Grünfeld.',
     pgn: `[Event "Open Catalan: 7. Qc2 a6 8. a4"]
-{ The Catalan is not a system. It is very complex and theory based but if white plays accurately they will have a small yet lingering advantage and usually a better pawn structure. Not aggressive but very positional. If you like endgames, this opening is for you. }
-
 1. d4 d5 2. c4 e6 3. Nf3 Nf6 4. g3 Be7 5. Bg2 O-O 6. O-O dxc4 7. Qc2 a6 8. a4 Bd7 9. Qxc4 Bc6 10. Bg5 Bd5 11. Qc2 Be4 12. Qc1 h6 13. Bxf6 Bxf6 14. Rd1 a5 15. Nbd2 Bxf3 16. Bxf3 Qxd4 17. Ne4 *
 
 [Event "Open Catalan: 7. Qc2 a6 8. a4 Bd7"]

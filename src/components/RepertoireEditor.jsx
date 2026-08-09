@@ -73,11 +73,6 @@ function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, onContex
 
   return (
     <span className="inline">
-      {isRoot && node.comment && (
-        <span className="block text-[11px] italic my-1 p-2 rounded" style={{ color: '#a8c5e2', background: 'rgba(107,140,174,0.12)', borderLeft: '2px solid #6b8cae' }}>
-          {node.comment}
-        </span>
-      )}
       {prefix && <span style={{ color: 'rgba(160,152,138,0.4)', marginRight: 2 }}>{prefix}</span>}
       <span
         onClick={() => onSelectNode && onSelectNode(mainPath, mainChild)}
