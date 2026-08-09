@@ -232,6 +232,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [allLines, setAllLines] = useState([]);
   const [lineIndex, setLineIndex] = useState(0);
   const [trainLineFilter, setTrainLineFilter] = useState('all');
+
+  const activeTrainLines = useMemo(() => {
+    return trainLineFilter === 'all' ? allLines : [allLines[Number(trainLineFilter)]];
+  }, [allLines, trainLineFilter]);
+
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   const [wrongSquare, setWrongSquare] = useState(null); // { from, to } for red X
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -549,10 +554,6 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       }, 800);
     }
   }, [chess, trainStatus, expectedMoves, repertoire, hintStage, handleSessionProgress, bumpDailyCount]);
-
-  const activeTrainLines = useMemo(() => {
-    return trainLineFilter === 'all' ? allLines : [allLines[Number(trainLineFilter)]];
-  }, [allLines, trainLineFilter]);
 
   const handleTrainFilterChange = useCallback((val) => {
     setTrainLineFilter(val);
