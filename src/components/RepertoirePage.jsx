@@ -51,8 +51,30 @@ function findExpectedNode(expectedMovesMap, san, orig, dest) {
   return null;
 }
 
-// Pick opponent move skillfully: prefer moves where user has an available response in recorded PGN
-function pickOpponentMove(expectedMap) {
+// Strictly restrict expected moves to the chosen repertoire line/chapter step
+function getExpectedForLineStep(node, currentLine, stepIndex) {
+  const map = new Map();
+  if (!node || !node.children) return map;
+  if (currentLine && currentLine[stepIndex]) {
+    const targetSan = currentLine[stepIndex].san;
+    if (node.children.has(targetSan)) {
+      map.set(targetSan, node.children.get(targetSan));
+      return map;
+    }
+  }
+  for (const [s, c] of node.children.entries()) map.set(s, c);
+  return map;
+}
+
+// Pick opponent move skillfully: prefer move from chosen repertoire line/chapter
+function pickOpponentMove(expectedMap, currentLine, stepIndex) {
+  if (!expectedMap || expectedMap.size === 0) return null;
+  if (currentLine && currentLine[stepIndex]) {
+    const targetSan = currentLine[stepIndex].san;
+    if (expectedMap.has(targetSan)) {
+      return targetSan;
+    }
+  }
   const allMoves = Array.from(expectedMap.keys());
   if (allMoves.length === 0) return null;
   const withUserResponses = allMoves.filter(san => {
@@ -310,9 +332,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       let lastM = null;
       let lastRM = null;
       let lastNN = currentNode;
+      let stepCount = currentPath.length;
+      const currentLine = activeTrainLines && activeTrainLines[lineIndex] ? activeTrainLines[lineIndex] : null;
 
       while (!currentIsUserTurn && currentExpected && currentExpected.size > 0) {
-        const rm = pickOpponentMove(currentExpected);
+        const rm = pickOpponentMove(currentExpected, currentLine, stepCount);
         if (!rm) break;
         const nn = currentExpected.get(rm);
         const move = executeMoveSafe(chess, rm, nn);
@@ -320,9 +344,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         lastRM = rm;
         lastM = move;
         lastNN = nn;
-        const ne = new Map();
-        for (const [s, c] of nn.children.entries()) ne.set(s, c);
-        currentExpected = ne;
+        stepCount += 1;
+        currentExpected = getExpectedForLineStep(nn, currentLine, stepCount);
         currentIsUserTurn = isUserWhite ? chess.turn() === 'w' : chess.turn() === 'b';
       }
 
@@ -342,7 +365,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         setTrainMessage('✅ Line complete!');
       }
     }
-  }, [mode, trainStatus, expectedMoves, chess, repertoire?.color, currentNode]);
+  }, [mode, trainStatus, expectedMoves, chess, repertoire?.color, currentNode, activeTrainLines, lineIndex, currentPath.length]);
 
   // ─── STUDY MODE ───
   const handleSelectStudyLine = useCallback((idx) => {
@@ -441,8 +464,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setTrainMessage(`Line ${idx + 1} of ${lines.length}`);
 
     setCurrentNode(node);
-    const expected = new Map();
-    for (const [san, child] of node.children.entries()) expected.set(san, child);
+    const currentLine = lines && lines[idx] ? lines[idx] : null;
+    const expected = getExpectedForLineStep(node, currentLine, 0);
     setExpectedMoves(expected);
 
     const isUserWhite = !repertoire.color || repertoire.color.toLowerCase() === 'white';
@@ -487,8 +510,9 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       bumpDailyCount();
 
       setCurrentNode(nextNode);
-      const newExpected = new Map();
-      for (const [s, child] of nextNode.children.entries()) newExpected.set(s, child);
+      const currentLine = activeTrainLines && activeTrainLines[lineIndex] ? activeTrainLines[lineIndex] : null;
+      const nextStepIndex = currentPath.length + 1;
+      const newExpected = getExpectedForLineStep(nextNode, currentLine, nextStepIndex);
       setExpectedMoves(newExpected);
 
       if (newExpected.size === 0) {
