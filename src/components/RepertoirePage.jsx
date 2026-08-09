@@ -570,20 +570,32 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const handleTrainFilterChange = useCallback((val) => {
     setTrainLineFilter(val);
     const targetLines = val === 'all' ? allLines : [allLines[Number(val)]];
-    setLineIndex(0);
-    startTrainLine(targetLines, 0, tree);
+    const targetIdx = val === 'all' && targetLines.length > 1
+      ? Math.floor(Math.random() * targetLines.length)
+      : 0;
+    setLineIndex(targetIdx);
+    startTrainLine(targetLines, targetIdx, tree);
   }, [allLines, tree, startTrainLine]);
 
   const handleNextLine = useCallback(() => {
-    const ni = lineIndex + 1;
-    if (ni >= activeTrainLines.length) {
-      setLineIndex(0);
-      startTrainLine(activeTrainLines, 0, tree);
+    if (trainLineFilter === 'all' && allLines.length > 1) {
+      let nextIdx = Math.floor(Math.random() * allLines.length);
+      if (allLines.length > 1 && nextIdx === lineIndex) {
+        nextIdx = (nextIdx + 1) % allLines.length;
+      }
+      setLineIndex(nextIdx);
+      startTrainLine(allLines, nextIdx, tree);
     } else {
-      setLineIndex(ni);
-      startTrainLine(activeTrainLines, ni, tree);
+      const ni = lineIndex + 1;
+      if (ni >= activeTrainLines.length) {
+        setLineIndex(0);
+        startTrainLine(activeTrainLines, 0, tree);
+      } else {
+        setLineIndex(ni);
+        startTrainLine(activeTrainLines, ni, tree);
+      }
     }
-  }, [lineIndex, activeTrainLines, tree, startTrainLine]);
+  }, [lineIndex, activeTrainLines, trainLineFilter, allLines, tree, startTrainLine]);
 
   const handleRestartLine = useCallback(() => {
     setExpectedMoves(new Map());
@@ -930,7 +942,20 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             {/* Mode toggle — 4-column grid on mobile so STUDY, TRAIN, SPAR, EDIT all fit side-by-side */}
             <div className="grid grid-cols-4 sm:flex gap-1 items-center w-full sm:w-auto">
               <button onClick={() => { setMode('study'); studyReset(); }} style={modeBtn('study')}>📖 STUDY</button>
-              <button onClick={() => { setMode('train'); chess.reset(); setPosition(chess.fen()); setCurrentPath([]); setLastMove(null); if (tree && allLines.length > 0) startTrainLine(allLines, 0, tree); }} style={modeBtn('train')}>🎯 TRAIN</button>
+              <button onClick={() => {
+                setMode('train');
+                chess.reset();
+                setPosition(chess.fen());
+                setCurrentPath([]);
+                setLastMove(null);
+                if (tree && allLines.length > 0) {
+                  const startIdx = trainLineFilter === 'all' && allLines.length > 1
+                    ? Math.floor(Math.random() * allLines.length)
+                    : 0;
+                  setLineIndex(startIdx);
+                  startTrainLine(trainLineFilter === 'all' ? allLines : activeTrainLines, startIdx, tree);
+                }
+              }} style={modeBtn('train')}>🎯 TRAIN</button>
               <button onClick={() => setSparMode(true)} style={modeBtn('spar')}>⚔ SPAR</button>
               <button onClick={() => setMode('edit')} style={modeBtn('edit')}>✏️ EDIT</button>
             </div>
