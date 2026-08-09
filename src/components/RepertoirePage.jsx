@@ -52,6 +52,18 @@ function findExpectedNode(expectedMovesMap, san, orig, dest) {
 }
 
 // Strictly restrict expected moves to the chosen repertoire line/chapter step
+// Traverse tree along currentLine up to stepCount to find the tree node
+function getNodeForPath(rootNode, currentLine, stepCount) {
+  let curr = rootNode;
+  if (!currentLine || stepCount <= 0) return curr;
+  for (let i = 0; i < stepCount && i < currentLine.length; i++) {
+    const san = currentLine[i].san;
+    if (!curr || !curr.children || !curr.children.has(san)) break;
+    curr = curr.children.get(san);
+  }
+  return curr;
+}
+
 function getExpectedForLineStep(node, currentLine, stepIndex) {
   const map = new Map();
   if (!node || !node.children) return map;
@@ -232,6 +244,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [allLines, setAllLines] = useState([]);
   const [lineIndex, setLineIndex] = useState(0);
   const [trainLineFilter, setTrainLineFilter] = useState('all');
+  const [trainStartMode, setTrainStartMode] = useState('start'); // 'start' = from move 1 | 'random' = random position in line
 
   const activeTrainLines = useMemo(() => {
     return trainLineFilter === 'all' ? allLines : [allLines[Number(trainLineFilter)]];
@@ -457,18 +470,34 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       node = parsePGNToTree(repertoire.pgn);
       setTree(node);
     }
-    const startFen = node?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    const currentLine = lines && lines[idx] ? lines[idx] : null;
+    const effectiveMode = overrideMode || trainStartMode;
+
+    let startStep = 0;
+    if (effectiveMode === 'random' && currentLine && currentLine.length > 2) {
+      startStep = Math.floor(Math.random() * (currentLine.length - 2)) + 1;
+    }
+
+    const startNode = getNodeForPath(node, currentLine, startStep);
+    const startFen = startNode?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     chess.load(startFen);
     setPosition(chess.fen());
-    setCurrentPath([]);
-    setLastMove(null);
+
+    const playedSans = currentLine && startStep > 0 ? currentLine.slice(0, startStep).map(m => m.san) : [];
+    setCurrentPath(playedSans);
+    if (startStep > 0 && currentLine && currentLine[startStep - 1]) {
+      const prevMove = currentLine[startStep - 1];
+      setLastMove(prevMove.from && prevMove.to ? [prevMove.from, prevMove.to] : null);
+    } else {
+      setLastMove(null);
+    }
+
     setWrongSquare(null);
-    setTrainMessage(`Line ${idx + 1} of ${lines.length}`);
+    setTrainMessage(startStep > 0 ? `Random Pos (Move ${startStep + 1}) — Line ${idx + 1} of ${lines.length}` : `Line ${idx + 1} of ${lines.length}`);
     setLineErrorCount(0);
 
-    setCurrentNode(node);
-    const currentLine = lines && lines[idx] ? lines[idx] : null;
-    const expected = getExpectedForLineStep(node, currentLine, 0);
+    setCurrentNode(startNode);
+    const expected = getExpectedForLineStep(startNode, currentLine, startStep);
     setExpectedMoves(expected);
 
     const isUserWhite = !repertoire.color || repertoire.color.toLowerCase() === 'white';
@@ -1111,14 +1140,60 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                 </select>
               </div>
             )}
+            {/* Start Mode Toggle (From Move 1 vs Random Positions) */}
+            {mode === 'train' && (
+              <div className="flex items-center justify-center w-full max-w-sm md:max-w-md gap-1.5 h-[32px] shrink-0">
+                <button
+                  onClick={() => {
+                    setTrainStartMode('start');
+                    startTrainLine(activeTrainLines, lineIndex, tree, 'start');
+                  }}
+                  className="flex-1 h-7 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
+                  style={{
+                    background: trainStartMode === 'start' ? 'rgba(107,140,174,0.22)' : 'rgba(107,140,174,0.05)',
+                    border: `1px solid ${trainStartMode === 'start' ? 'rgba(107,140,174,0.45)' : 'rgba(107,140,174,0.12)'}`,
+                    color: trainStartMode === 'start' ? '#fff' : 'rgba(160,152,138,0.6)',
+                    cursor: 'pointer',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  <span>▶</span>
+                  <span>FROM MOVE 1</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setTrainStartMode('random');
+                    startTrainLine(activeTrainLines, lineIndex, tree, 'random');
+                  }}
+                  className="flex-1 h-7 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
+                  style={{
+                    background: trainStartMode === 'random' ? 'rgba(234,179,8,0.22)' : 'rgba(107,140,174,0.05)',
+                    border: `1px solid ${trainStartMode === 'random' ? 'rgba(234,179,8,0.45)' : 'rgba(107,140,174,0.12)'}`,
+                    color: trainStartMode === 'random' ? '#facc15' : 'rgba(160,152,138,0.6)',
+                    cursor: 'pointer',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  <span>🎲</span>
+                  <span>RANDOM POSITIONS</span>
+                </button>
+              </div>
+            )}
             {/* Stable fixed-height container for Training Mode buttons so they NEVER displace the chessboard */}
             {mode === 'train' && (
-              <div className="flex items-center justify-center w-full max-w-sm md:max-w-md h-[40px] shrink-0">
+              <div className="flex items-center justify-center w-full max-w-sm md:max-w-md h-[40px] gap-2 shrink-0">
                 {trainStatus === 'complete' ? (
                   <button onClick={handleNextLine} className="w-full h-9 px-5 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>NEXT LINE →</button>
-                ) : (trainStatus === 'wrong' || trainStatus === 'user_turn') && currentPath.length > 0 ? (
-                  <button onClick={handleRestartLine} className="px-3 h-8 text-xs rounded-lg transition-all" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart Line</button>
-                ) : null}
+                ) : (
+                  <>
+                    {(trainStatus === 'wrong' || trainStatus === 'user_turn') && currentPath.length > 0 && (
+                      <button onClick={handleRestartLine} className="px-3 h-8 text-xs rounded-lg transition-all" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart Line</button>
+                    )}
+                    {trainStartMode === 'random' && (
+                      <button onClick={() => startTrainLine(activeTrainLines, lineIndex, tree, 'random')} className="px-3 h-8 text-xs rounded-lg transition-all font-orbitron font-semibold" style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.35)', color: '#facc15', cursor: 'pointer', letterSpacing: '0.04em' }}>🎲 Next Random Pos</button>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -1271,6 +1346,47 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                       </select>
                     </div>
                   )}
+
+                  {/* Start Mode Toggle (From Move 1 vs Random Positions) */}
+                  <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
+                    <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>PRACTICE START POSITION</h3>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => {
+                          setTrainStartMode('start');
+                          startTrainLine(activeTrainLines, lineIndex, tree, 'start');
+                        }}
+                        className="flex-1 py-1.5 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
+                        style={{
+                          background: trainStartMode === 'start' ? 'rgba(107,140,174,0.22)' : 'rgba(107,140,174,0.05)',
+                          border: `1px solid ${trainStartMode === 'start' ? 'rgba(107,140,174,0.45)' : 'rgba(107,140,174,0.12)'}`,
+                          color: trainStartMode === 'start' ? '#fff' : 'rgba(160,152,138,0.6)',
+                          cursor: 'pointer',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        <span>▶</span>
+                        <span>FROM MOVE 1</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTrainStartMode('random');
+                          startTrainLine(activeTrainLines, lineIndex, tree, 'random');
+                        }}
+                        className="flex-1 py-1.5 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
+                        style={{
+                          background: trainStartMode === 'random' ? 'rgba(234,179,8,0.22)' : 'rgba(107,140,174,0.05)',
+                          border: `1px solid ${trainStartMode === 'random' ? 'rgba(234,179,8,0.45)' : 'rgba(107,140,174,0.12)'}`,
+                          color: trainStartMode === 'random' ? '#facc15' : 'rgba(160,152,138,0.6)',
+                          cursor: 'pointer',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        <span>🎲</span>
+                        <span>RANDOM POSITIONS</span>
+                      </button>
+                    </div>
+                  </div>
 
                   {/* Status */}
                   <div className="rounded-xl p-3.5" style={{
