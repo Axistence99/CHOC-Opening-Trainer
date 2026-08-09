@@ -997,8 +997,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
             {/* Board controls for Train mode */}
             {mode === 'train' && allLines.length > 1 && (
-              <div className="w-full max-w-sm md:max-w-md flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)' }}>
-                <span className="text-[10px] font-orbitron font-semibold" style={{ color: '#8daac4', letterSpacing: '0.05em' }}>PRACTICE:</span>
+              <div className="w-full max-w-sm md:max-w-md h-[36px] flex items-center justify-between gap-2 px-3 rounded-lg shrink-0" style={{ background: 'rgba(10,15,35,0.8)', border: '1px solid rgba(107,140,174,0.18)' }}>
+                <span className="text-[10px] font-orbitron font-semibold shrink-0" style={{ color: '#8daac4', letterSpacing: '0.05em' }}>PRACTICE:</span>
                 <select
                   value={trainLineFilter}
                   onChange={(e) => handleTrainFilterChange(e.target.value)}
@@ -1019,11 +1019,15 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                 </select>
               </div>
             )}
-            {mode === 'train' && trainStatus === 'complete' && (
-              <button onClick={handleNextLine} className="px-5 py-2.5 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>NEXT LINE →</button>
-            )}
-            {mode === 'train' && (trainStatus === 'wrong' || trainStatus === 'user_turn') && currentPath.length > 0 && (
-              <button onClick={handleRestartLine} className="px-3 py-1.5 text-xs rounded-lg transition-all" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart Line</button>
+            {/* Stable fixed-height container for Training Mode buttons so they NEVER displace the chessboard */}
+            {mode === 'train' && (
+              <div className="flex items-center justify-center w-full max-w-sm md:max-w-md h-[40px] shrink-0">
+                {trainStatus === 'complete' ? (
+                  <button onClick={handleNextLine} className="w-full h-9 px-5 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>NEXT LINE →</button>
+                ) : (trainStatus === 'wrong' || trainStatus === 'user_turn') && currentPath.length > 0 ? (
+                  <button onClick={handleRestartLine} className="px-3 h-8 text-xs rounded-lg transition-all" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart Line</button>
+                ) : null}
+              </div>
             )}
 
             {/* Mobile flip button */}
