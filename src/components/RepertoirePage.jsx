@@ -462,7 +462,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   }, []);
 
   // ─── TRAIN MODE ───
-  const startTrainLine = useCallback((lines, idx, rootNode) => {
+  const startTrainLine = useCallback((lines, idx, rootNode, overrideMode) => {
     if (!lines || lines.length === 0 || idx >= lines.length) {
       setTrainStatus('complete');
       setTrainMessage('All lines completed!');
@@ -1352,7 +1352,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
                   {/* Start Mode Toggle (From Move 1 vs Random Positions) */}
                   <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
-                    <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>PRACTICE START POSITION</h3>
+                    <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>TRAINING SETTINGS</h3>
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => {
