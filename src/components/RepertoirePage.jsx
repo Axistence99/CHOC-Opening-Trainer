@@ -1277,6 +1277,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                     background: trainStatus === 'correct' ? 'rgba(107,140,174,0.12)' : trainStatus === 'wrong' ? 'rgba(255,107,107,0.08)' : trainStatus === 'complete' ? 'rgba(168,131,74,0.12)' : 'rgba(15,20,40,0.6)',
                     border: `1px solid ${trainStatus === 'correct' ? 'rgba(107,140,174,0.3)' : trainStatus === 'wrong' ? 'rgba(255,107,107,0.2)' : trainStatus === 'complete' ? 'rgba(168,131,74,0.3)' : 'rgba(107,140,174,0.08)'}`,
                   }}>
+                    {activeTrainLines && activeTrainLines[lineIndex] && (
+                      <div className="text-[11px] font-orbitron font-semibold mb-1 truncate" style={{ color: '#8daac4', letterSpacing: '0.05em' }}>
+                        {formatChapterLabel(activeTrainLines[lineIndex].name, trainLineFilter === 'all' ? lineIndex : Number(trainLineFilter), `Line ${lineIndex + 1}`)}
+                      </div>
+                    )}
                     <p className="text-sm font-medium" style={{ color: trainStatus === 'correct' ? '#8daac4' : trainStatus === 'wrong' ? '#ff6b6b' : trainStatus === 'complete' ? '#a8834a' : '#cbd5e1' }}>
                       {trainMessage || (trainStatus === 'user_turn' ? 'Your turn — play the correct move' : 'Waiting...')}
                     </p>
@@ -1485,6 +1490,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                 background: trainStatus === 'correct' ? 'rgba(107,140,174,0.12)' : trainStatus === 'wrong' ? 'rgba(255,107,107,0.08)' : trainStatus === 'complete' ? 'rgba(168,131,74,0.12)' : 'rgba(15,20,40,0.6)',
                 border: `1px solid ${trainStatus === 'correct' ? 'rgba(107,140,174,0.3)' : trainStatus === 'wrong' ? 'rgba(255,107,107,0.2)' : trainStatus === 'complete' ? 'rgba(168,131,74,0.3)' : 'rgba(107,140,174,0.08)'}`,
               }}>
+                {activeTrainLines && activeTrainLines[lineIndex] && (
+                  <div className="text-[10px] font-orbitron font-semibold mb-0.5 truncate" style={{ color: '#8daac4', letterSpacing: '0.05em' }}>
+                    {formatChapterLabel(activeTrainLines[lineIndex].name, trainLineFilter === 'all' ? lineIndex : Number(trainLineFilter), `Line ${lineIndex + 1}`)}
+                  </div>
+                )}
                 <p className="text-sm" style={{ color: trainStatus === 'correct' ? '#8daac4' : trainStatus === 'wrong' ? '#ff6b6b' : trainStatus === 'complete' ? '#a8834a' : '#cbd5e1' }}>
                   {trainMessage || (trainStatus === 'user_turn' ? 'Your turn' : '...')}
                 </p>
