@@ -598,5 +598,23 @@ export function getLeafPaths(node) {
   }
   
   traverse(node, []);
+
+  // Sort paths by natural chapter/part order so chapters like "(Pt. 6)" appear
+  // before "(Pt. 18)", rather than in DFS tree traversal order.
+  function getPartNumber(line) {
+    if (!line || !line.name) return 999999;
+    const match = String(line.name).match(/\(Pt\.\s*(\d+)\)/i) ||
+                  String(line.name).match(/Chapter\s*(\d+)/i) ||
+                  String(line.name).match(/^(\d+)\./);
+    return match ? parseInt(match[1], 10) : 999999;
+  }
+
+  paths.sort((a, b) => {
+    const pA = getPartNumber(a);
+    const pB = getPartNumber(b);
+    if (pA !== pB) return pA - pB;
+    return 0;
+  });
+
   return paths;
 }

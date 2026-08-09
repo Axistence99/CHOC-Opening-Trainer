@@ -267,11 +267,10 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setEditName(repertoire.name);
     setEditDescription(repertoire.description || '');
 
-    // Training lines
+    // Training lines (ordered sequentially from Part 1 to last)
     const lines = buildAllLines(parsedTree);
-    const shuffled = [...lines].sort(() => Math.random() - 0.5);
-    setAllLines(shuffled);
-    setEditChapterNames(shuffled.map((l, idx) => l.name || `Chapter ${idx + 1}`));
+    setAllLines(lines);
+    setEditChapterNames(lines.map((l, idx) => l.name || `Chapter ${idx + 1}`));
     setLineIndex(0);
     setStats({ correct: 0, wrong: 0, total: 0 });
 
@@ -539,15 +538,13 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const handleNextLine = useCallback(() => {
     const ni = lineIndex + 1;
     if (ni >= activeTrainLines.length) {
-      const rs = [...activeTrainLines].sort(() => Math.random() - 0.5);
-      if (trainLineFilter === 'all') setAllLines(rs);
       setLineIndex(0);
-      startTrainLine(rs, 0, tree);
+      startTrainLine(activeTrainLines, 0, tree);
     } else {
       setLineIndex(ni);
       startTrainLine(activeTrainLines, ni, tree);
     }
-  }, [lineIndex, activeTrainLines, trainLineFilter, tree, startTrainLine]);
+  }, [lineIndex, activeTrainLines, tree, startTrainLine]);
 
   const handleRestartLine = useCallback(() => {
     setExpectedMoves(new Map());
