@@ -253,7 +253,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // Track daily new cards done today (persisted)
   const [dailyCount, setDailyCount] = useState(() => {
     try {
-      const d = localStorage.getItem('choc-daily-new');
+      const d = localStorage.getItem('redalgin-daily-new') || localStorage.getItem('choc-daily-new');
       if (d) {
         const parsed = JSON.parse(d);
         const today = new Date().toDateString();
@@ -266,7 +266,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const bumpDailyCount = useCallback(() => {
     setDailyCount((c) => {
       const n = c + 1;
-      try { localStorage.setItem('choc-daily-new', JSON.stringify({ date: new Date().toDateString(), count: n })); } catch {}
+      try { localStorage.setItem('redalgin-daily-new', JSON.stringify({ date: new Date().toDateString(), count: n })); } catch {}
       return n;
     });
   }, []);

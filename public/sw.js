@@ -1,4 +1,4 @@
-/* CHOC Opening Trainer — Service Worker
+/* Redalgin Opening Trainer — Service Worker
  *
  * Strategy: NETWORK-FIRST for same-origin requests, falling back to cache when
  * offline. This ensures users always get the latest deployed build (hashed JS
@@ -6,7 +6,7 @@
  * The app shell and Stockfish engine are still cached so the app works offline
  * after the first visit.
  */
-const CACHE_VERSION = 'choc-v25-20260807-instant';
+const CACHE_VERSION = 'redalgin-v26-20260807-instant';
 const PRECACHE = [
   './',
   './index.html',

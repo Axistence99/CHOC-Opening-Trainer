@@ -1,6 +1,6 @@
 {
-  "name": "CHOC Opening Trainer",
-  "short_name": "CHOC",
+  "name": "Redalgin Opening Trainer",
+  "short_name": "Redalgin",
   "description": "Free chess opening repertoire trainer with spaced repetition, sparring, and offline support.",
   "start_url": "./",
   "scope": "./",

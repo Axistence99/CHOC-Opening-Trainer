@@ -1,8 +1,8 @@
-# ♞ CHOC Opening Trainer
+# ♞ Redalgin Opening Trainer
 
 A free, open-source chess opening repertoire trainer that runs entirely in your browser. Host it on GitHub Pages for free!
 
-![CHOC Opening Trainer](https://img.shields.io/badge/React-19-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8) ![chess.js](https://img.shields.io/badge/chess.js-latest-green) ![chessground](https://img.shields.io/badge/chessground-9-GPLv2)
+![Redalgin Opening Trainer](https://img.shields.io/badge/React-19-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8) ![chess.js](https://img.shields.io/badge/chess.js-latest-green) ![chessground](https://img.shields.io/badge/chessground-9-GPLv2)
 
 ## Features
 
@@ -99,7 +99,7 @@ npm run build
 
 ## PWA / Offline
 
-CHOC is a Progressive Web App. After visiting once, it works fully offline:
+Redalgin is a Progressive Web App. After visiting once, it works fully offline:
 
 - **Install** — Use your browser's *Add to Home Screen* / *Install app*.
 - **Offline use** — The app shell and the Stockfish engine are cached, so you can keep drilling and even play vs the engine with no connection.

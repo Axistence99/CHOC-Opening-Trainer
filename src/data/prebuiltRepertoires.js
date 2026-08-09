@@ -8,7 +8,7 @@ const PREBUILT_REPERTOIRES = [
     color: 'white',
     description: 'A simple e4 repertoire for beginners. Focuses on common, easy-to-play positions.',
     pgn: `[Event "Beginner White Repertoire"]
-[Site "CHOC Opening Trainer"]
+[Site "Redalgin Opening Trainer"]
 [Date "2024.01.01"]
 [White "You"]
 [Black "Opponent"]
@@ -40,7 +40,7 @@ const PREBUILT_REPERTOIRES = [
     color: 'black',
     description: 'A solid black repertoire. e5 vs e4, Caro-Kann vs d4, and simple systems vs flank openings.',
     pgn: `[Event "Beginner Black Repertoire"]
-[Site "CHOC Opening Trainer"]
+[Site "Redalgin Opening Trainer"]
 [Date "2024.01.01"]
 [White "Opponent"]
 [Black "You"]
@@ -65,7 +65,7 @@ const PREBUILT_REPERTOIRES = [
     color: 'white',
     description: 'The Italian Game (1.e4 e5 2.Nf3 Nc6 3.Bc4) — a classic opening with rich history. Great for beginners and club players.',
     pgn: `[Event "Italian Game Repertoire"]
-[Site "CHOC Opening Trainer"]
+[Site "Redalgin Opening Trainer"]
 [Date "2024.01.01"]
 [White "You"]
 [Black "Opponent"]
@@ -85,7 +85,7 @@ const PREBUILT_REPERTOIRES = [
     color: 'black',
     description: 'The Sicilian Dragon (1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 g6) — aggressive and exciting!',
     pgn: `[Event "Sicilian Dragon Repertoire"]
-[Site "CHOC Opening Trainer"]
+[Site "Redalgin Opening Trainer"]
 [Date "2024.01.01"]
 [White "Opponent"]
 [Black "You"]
@@ -105,7 +105,7 @@ const PREBUILT_REPERTOIRES = [
     color: 'white',
     description: "The Queen's Gambit (1.d4 d5 2.c4) — a strategic and positional opening for White. Extremely popular at all levels.",
     pgn: `[Event "Queen's Gambit Repertoire"]
-[Site "CHOC Opening Trainer"]
+[Site "Redalgin Opening Trainer"]
 [Date "2024.01.01"]
 [White "You"]
 [Black "Opponent"]
@@ -127,7 +127,7 @@ const PREBUILT_REPERTOIRES = [
     color: 'black',
     description: "The King's Indian Defense — a dynamic and aggressive defense against 1.d4. Favored by Kasparov and Fischer.",
     pgn: `[Event "King's Indian Defense Repertoire"]
-[Site "CHOC Opening Trainer"]
+[Site "Redalgin Opening Trainer"]
 [Date "2024.01.01"]
 [White "Opponent"]
 [Black "You"]

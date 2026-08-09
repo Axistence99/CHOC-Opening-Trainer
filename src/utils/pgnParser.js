@@ -492,7 +492,7 @@ export function treeToPGN(root, repertoireName = 'Exported Repertoire') {
   if (!root || root.children.size === 0) return '';
   
   const date = new Date().toISOString().split('T')[0];
-  const header = `[Event "${repertoireName}"]\n[Site "CHOC Opening Trainer"]\n[Date "${date}"]\n\n`;
+  const header = `[Event "${repertoireName}"]\n[Site "Redalgin Opening Trainer"]\n[Date "${date}"]\n\n`;
   
   // Build PGN with variations
   const moveText = traverseToPGN(root, true);

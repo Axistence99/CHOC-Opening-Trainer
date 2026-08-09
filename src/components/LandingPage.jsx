@@ -178,7 +178,7 @@ function preloadPieceSetSVGs(setKey) {
 // Read persisted piece set from localStorage
 function getSavedPieceSet() {
   try {
-    const saved = localStorage.getItem('choc-piece-set');
+    const saved = localStorage.getItem('redalgin-piece-set') || localStorage.getItem('choc-piece-set');
     if (saved && PIECE_SETS[saved]) return saved;
   } catch {}
   return 'cburnett';
@@ -205,7 +205,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
     preloadPieceSetSVGs(key).then(() => {
       setPieceSetRaw(key);
       setPieceSetReady(true);
-      try { localStorage.setItem('choc-piece-set', key); } catch {}
+      try { localStorage.setItem('redalgin-piece-set', key); } catch {}
     });
   }, [pieceSet]);
   const [orientation, setOrientation] = useState('white');
@@ -428,7 +428,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
             <div className="w-8 h-8 flex items-center justify-center text-2xl" style={{ color: '#ddd8cc' }}>♟</div>
             <div className="flex flex-col justify-center">
               <div style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 900, fontSize: '0.9rem', color: '#ddd8cc', letterSpacing: '0.12em', lineHeight: 1 }}>
-                CHOC
+                REDALGIN
               </div>
               <div style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 600, fontSize: '0.6rem', color: '#6b8cae', letterSpacing: '0.12em', lineHeight: 1, marginTop: '3px' }}>
                 OPENING TRAINER
@@ -629,7 +629,7 @@ export default function LandingPage({ boardTheme, onBoardThemeChange, onSelectRe
       {/* Footer — License & Credits */}
       <footer className="relative w-full px-3 md:px-8 py-2 md:py-3 border-t flex flex-wrap items-center justify-between gap-2" style={{ zIndex: 1, borderColor: 'rgba(107,140,174,0.08)', background: 'rgba(6,8,16,0.5)' }}>
         <div className="flex items-center gap-3 text-[10px]" style={{ color: 'rgba(150,142,130,0.4)' }}>
-          <span>© 2024–2026 CHOC Opening Trainer</span>
+          <span>© 2024–2026 Redalgin Opening Trainer</span>
           <span>·</span>
           <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(107,140,174,0.5)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>GPL-3.0-or-later</a>
         </div>

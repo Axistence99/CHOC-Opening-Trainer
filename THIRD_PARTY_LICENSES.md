@@ -1,7 +1,7 @@
 # Third-Party Licenses & Attribution
 
 This file lists all third-party software, assets, and resources used in
-CHOC Opening Trainer, along with their licenses and copyright holders.
+Redalgin Opening Trainer, along with their licenses and copyright holders.
 
 ---
 
@@ -121,7 +121,7 @@ The following Lichess board themes are available:
 
 All Lichess board images are licensed under **AGPL-3.0-or-later** as part of the lila project.
 
-The **DeepBoard** theme is original to CHOC Opening Trainer and is not derived from any third-party design.
+The **DeepBoard** theme is original to Redalgin Opening Trainer and is not derived from any third-party design.
 
 ---
 

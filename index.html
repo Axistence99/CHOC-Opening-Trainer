@@ -9,23 +9,23 @@
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="description" content="CHOC — Free chess opening repertoire trainer with pre-built lines and PGN import. Practice with spaced repetition." />
+    <meta name="description" content="Redalgin — Free chess opening repertoire trainer with pre-built lines and PGN import. Practice with spaced repetition." />
     <meta name="theme-color" content="#080b14" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="CHOC" />
+    <meta name="apple-mobile-web-app-title" content="Redalgin" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png" />
-    <title>CHOC Opening Trainer</title>
+    <title>Redalgin Opening Trainer</title>
     <!-- Inject piece set CSS override BEFORE React mounts to prevent flash of default pieces.
          Reads the persisted piece set from localStorage. If it's cburnett (default), no override needed.
          For other sets, we create a <style> with !important rules that win over the bundled cburnett CSS. -->
     <script>
       try {
-        var ps = localStorage.getItem('choc-piece-set');
+        var ps = localStorage.getItem('redalgin-piece-set') || localStorage.getItem('choc-piece-set');
         if (ps && ps !== 'cburnett') {
           var base = 'https://lichess1.org/assets/piece/' + ps + '/';
           var roles = ['king','queen','rook','bishop','knight','pawn'];

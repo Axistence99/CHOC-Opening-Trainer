@@ -1,5 +1,5 @@
 #!/bin/bash
-# CHOC Opening Trainer — One-command deploy to GitHub
+# Redalgin Opening Trainer — One-command deploy to GitHub
 # Usage: ./deploy.sh "commit message"
 #
 # This pushes from the sandbox directly to GitHub.
