@@ -6,7 +6,7 @@
  * The app shell and Stockfish engine are still cached so the app works offline
  * after the first visit.
  */
-const CACHE_VERSION = 'redalgin-v33-20260807-instant';
+const CACHE_VERSION = 'redalgin-v34-20260807-instant';
 const PRECACHE = [
   './',
   './index.html',

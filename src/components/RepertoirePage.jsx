@@ -57,18 +57,20 @@ function getNodeForPath(rootNode, currentLine, stepCount) {
   let curr = rootNode;
   if (!currentLine || stepCount <= 0) return curr;
   for (let i = 0; i < stepCount && i < currentLine.length; i++) {
-    const san = currentLine[i].san;
+    const item = currentLine[i];
+    const san = typeof item === 'string' ? item : (item?.san || item);
     if (!curr || !curr.children || !curr.children.has(san)) break;
     curr = curr.children.get(san);
   }
-  return curr;
+  return curr || rootNode;
 }
 
 function getExpectedForLineStep(node, currentLine, stepIndex) {
   const map = new Map();
   if (!node || !node.children) return map;
   if (currentLine && currentLine[stepIndex]) {
-    const targetSan = currentLine[stepIndex].san;
+    const item = currentLine[stepIndex];
+    const targetSan = typeof item === 'string' ? item : (item?.san || item);
     if (node.children.has(targetSan)) {
       map.set(targetSan, node.children.get(targetSan));
       return map;
@@ -82,7 +84,8 @@ function getExpectedForLineStep(node, currentLine, stepIndex) {
 function pickOpponentMove(expectedMap, currentLine, stepIndex) {
   if (!expectedMap || expectedMap.size === 0) return null;
   if (currentLine && currentLine[stepIndex]) {
-    const targetSan = currentLine[stepIndex].san;
+    const item = currentLine[stepIndex];
+    const targetSan = typeof item === 'string' ? item : (item?.san || item);
     if (expectedMap.has(targetSan)) {
       return targetSan;
     }
