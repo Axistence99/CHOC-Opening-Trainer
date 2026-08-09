@@ -1109,7 +1109,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                   )}
 
                   {/* Comment / Explanation */}
-                  {currentStudyStep?.comment && (
+                  {currentStudyStep?.comment && !/catalan\s+is\s+not\s+a\s+system/i.test(currentStudyStep.comment) && (
                     <div className="rounded-xl p-3" style={{ background: 'rgba(168,131,74,0.08)', border: '1px solid rgba(168,131,74,0.2)' }}>
                       <h3 className="font-orbitron font-semibold text-[10px] mb-1.5" style={{ color: '#a8834a', letterSpacing: '0.1em' }}>COMMENT</h3>
                       <p className="text-sm leading-relaxed" style={{ color: 'rgba(160,152,138,0.8)' }}>{currentStudyStep.comment}</p>
@@ -1377,7 +1377,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                   );
                 })}
               </div>
-              {currentStudyStep?.comment && (
+              {currentStudyStep?.comment && !/catalan\s+is\s+not\s+a\s+system/i.test(currentStudyStep.comment) && (
                 <p className="text-xs" style={{ color: 'rgba(160,152,138,0.7)' }}>{currentStudyStep.comment}</p>
               )}
             </>

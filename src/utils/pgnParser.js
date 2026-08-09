@@ -257,7 +257,11 @@ export function tokenizePGN(gameSegment) {
   let text = String(gameSegment || '').trim();
   const comments = [];
   text = text.replace(/\{([^}]*)\}/g, (_, c) => {
-    comments.push(c.trim());
+    const trimmed = c.trim();
+    if (/catalan\s+is\s+not\s+a\s+system/i.test(trimmed)) {
+      return ' ';
+    }
+    comments.push(trimmed);
     return ` __COMMENT_${comments.length - 1}__ `;
   });
   text = text.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ');

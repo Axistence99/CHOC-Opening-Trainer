@@ -24,7 +24,10 @@ export function getRepertoires() {
       const prebuilt = PREBUILT_REPERTOIRES.find(p =>
         p.id === rep.id ||
         `opening-${p.id}` === rep.id ||
-        (p.name && rep.name && p.name.toLowerCase() === rep.name.toLowerCase())
+        (p.name && rep.name && (
+          p.name.toLowerCase() === rep.name.toLowerCase() ||
+          (rep.name.toLowerCase().includes('catalan') && p.id === 'catalan-white')
+        ))
       );
       if (prebuilt) {
         return {
