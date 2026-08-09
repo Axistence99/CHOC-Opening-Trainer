@@ -26,6 +26,12 @@ function computeDests(fen) {
   } catch { return new Map(); }
 }
 
+function formatChapterTitle(name, idx, fallbackText) {
+  if (!name) return fallbackText || `Line ${idx + 1}`;
+  const clean = String(name).replace(/^\d+[\.\-):]\s*/, '').trim();
+  return `${idx + 1}. ${clean}`;
+}
+
 /**
  * Find the expected book move(s) at the current position in the tree
  * Returns a Map of SAN -> tree node
@@ -350,7 +356,7 @@ export default function SparringMode({ repertoire, boardTheme, onExit }) {
                   const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
                   return (
                     <option key={idx} value={idx}>
-                      {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`}: {preview}...
+                      {formatChapterTitle(line.name, idx, `Line ${idx + 1}`)}: {preview}...
                     </option>
                   );
                 })}

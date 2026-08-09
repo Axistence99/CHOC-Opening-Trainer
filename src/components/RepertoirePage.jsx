@@ -126,6 +126,13 @@ function formatMoveNotation(moves, upToIndex) {
   return parts.join(' ');
 }
 
+// Format chapter title without repeating numbers (e.g. "1. 1.")
+function formatChapterLabel(name, idx, fallbackText) {
+  if (!name) return fallbackText || `Line ${idx + 1}`;
+  const clean = String(name).replace(/^\d+[\.\-):]\s*/, '').trim();
+  return `${idx + 1}. ${clean}`;
+}
+
 function PGNTreeView({ node, currentPath, pathSoFar = [], onSelectNode, isRoot = true }) {
   if (!node || !node.children || node.children.size === 0) return null;
   const entries = Array.from(node.children.entries());
@@ -914,7 +921,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                         const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
                         return (
                           <option key={idx} value={idx} style={{ background: '#0a0d18', color: '#cbd5e1' }}>
-                            {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1} of ${allLines.length}`} ({preview}...)
+                            {formatChapterLabel(line.name, idx, `Line ${idx + 1} of ${allLines.length}`)} ({preview}...)
                           </option>
                         );
                       })}
@@ -973,7 +980,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                     const preview = line.slice(0, 4).map(l => typeof l === 'string' ? l : l.san).join(' ');
                     return (
                       <option key={idx} value={idx} style={{ background: '#0a0d18', color: '#cbd5e1' }}>
-                        {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`} ({preview}...)
+                        {formatChapterLabel(line.name, idx, `Line ${idx + 1}`)} ({preview}...)
                       </option>
                     );
                   })}
@@ -1013,7 +1020,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                           const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
                           return (
                             <option key={idx} value={idx}>
-                              {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`}: {preview}...
+                              {formatChapterLabel(line.name, idx, `Line ${idx + 1}`)}: {preview}...
                             </option>
                           );
                         })}
@@ -1129,7 +1136,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                           const preview = line.slice(0, 5).map(l => typeof l === 'string' ? l : l.san).join(' ');
                           return (
                             <option key={idx} value={idx}>
-                              {line.name ? `${idx + 1}. ${line.name}` : `Line ${idx + 1}`}: {preview}...
+                              {formatChapterLabel(line.name, idx, `Line ${idx + 1}`)}: {preview}...
                             </option>
                           );
                         })}
