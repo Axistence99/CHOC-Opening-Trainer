@@ -240,6 +240,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [stats, setStats] = useState({ correct: 0, wrong: 0, total: 0 });
   const [wrongSquare, setWrongSquare] = useState(null); // { from, to } for red X
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [lineErrorCount, setLineErrorCount] = useState(0);
+  const [showStudySuggestionModal, setShowStudySuggestionModal] = useState(false);
 
   // ─── New drill features ───
   const [settings] = useState(() => getSettings()); // sessionCap, dailyNewCap, drillPace, lineWalkEnabled, showHints
@@ -462,6 +464,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setLastMove(null);
     setWrongSquare(null);
     setTrainMessage(`Line ${idx + 1} of ${lines.length}`);
+    setLineErrorCount(0);
 
     setCurrentNode(node);
     const currentLine = lines && lines[idx] ? lines[idx] : null;
@@ -500,6 +503,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setWrongSquare(null);
       setTrainStatus('correct');
       setStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
+      setLineErrorCount(0);
       // Move quality glyph: ! for a clean first-try, !? if a hint was used
       setMoveGlyph(hintStage > 0 ? { square: dest, glyph: '!?', tone: 'amber' } : { square: dest, glyph: '!', tone: 'good' });
       setTimeout(() => setMoveGlyph(null), 1200);
@@ -539,6 +543,14 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setMoveGlyph({ square: dest, glyph: '?', tone: 'bad' });
       setTrainStatus('wrong');
       setStats(prev => ({ ...prev, wrong: prev.wrong + 1, total: prev.total + 1 }));
+      setLineErrorCount(c => {
+        const nextCount = c + 1;
+        if (nextCount >= 3) {
+          setShowStudySuggestionModal(true);
+          return 0; // reset counter after triggering modal
+        }
+        return nextCount;
+      });
       updatePracticeEntry(chess.fen().split(' ').slice(0, 4).join(' '), 1);
       handleSessionProgress();
 
@@ -808,6 +820,29 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     onExit();
   }, [repertoire, onExit]);
 
+  // Redirect to Study mode on the exact PGN position/move after 3 training errors
+  const handleSwitchToStudyFromSuggestion = useCallback(() => {
+    setShowStudySuggestionModal(false);
+    setLineErrorCount(0);
+    setMode('study');
+
+    const currentAllLinesIdx = trainLineFilter === 'all' ? lineIndex : Number(trainLineFilter);
+    const targetLineIdx = currentAllLinesIdx >= 0 && currentAllLinesIdx < allLines.length ? currentAllLinesIdx : 0;
+    setStudyLineIdx(targetLineIdx);
+
+    const sp = buildStudyPathForLine(tree, allLines[targetLineIdx]);
+    setStudyPath(sp);
+
+    const stepIndex = Math.min(currentPath.length, sp.length - 1);
+    setStudyStep(stepIndex);
+    const targetStep = sp[stepIndex] || sp[0];
+
+    setPosition(targetStep.fen || position);
+    setLastMove(targetStep.from && targetStep.to ? [targetStep.from, targetStep.to] : lastMove);
+    setCurrentPath(sp.slice(1, stepIndex + 1).map(s => s.san).filter(Boolean));
+    setStudyNode(currentNode || tree);
+  }, [allLines, tree, trainLineFilter, lineIndex, currentPath.length, position, lastMove, currentNode]);
+
   if (!repertoire) return null;
 
   // ─── SPARRING MODE ───
@@ -830,6 +865,38 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: '#080b14', fontFamily: "'Inter', sans-serif" }}>
+      {/* Study Suggestion Modal (After 3 Training Errors) */}
+      {showStudySuggestionModal && (
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50 animate-fade-in" style={{ background: 'rgba(4,6,12,0.85)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-sm rounded-2xl p-6 border space-y-4 shadow-2xl text-center" style={{ background: 'rgba(15,20,40,0.95)', borderColor: 'rgba(234,179,8,0.35)' }}>
+            <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center text-2xl shadow-lg" style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', color: '#facc15' }}>
+              💡
+            </div>
+            <h3 className="font-orbitron font-bold text-base" style={{ color: '#ddd8cc', letterSpacing: '0.08em' }}>
+              STUDY SUGGESTION
+            </h3>
+            <p className="text-xs leading-relaxed" style={{ color: 'rgba(180,172,158,0.8)' }}>
+              You&apos;ve made 3 errors while practicing this line. Would you like to switch to <span style={{ color: '#6b8cae', fontWeight: 600 }}>Study Mode</span> to review this exact position and its variations?
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={handleSwitchToStudyFromSuggestion}
+                className="w-full py-2.5 px-4 rounded-xl font-orbitron font-semibold text-xs transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+                style={{ background: 'linear-gradient(135deg, rgba(107,140,174,0.35), rgba(168,131,74,0.3))', border: '1px solid rgba(107,140,174,0.45)', color: '#ddd8cc', cursor: 'pointer', letterSpacing: '0.06em' }}
+              >
+                📖 YES, REVIEW IN STUDY MODE
+              </button>
+              <button
+                onClick={() => { setShowStudySuggestionModal(false); setLineErrorCount(0); }}
+                className="w-full py-2 px-4 rounded-xl text-xs font-medium transition-all hover:opacity-80"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(160,152,138,0.7)', cursor: 'pointer' }}
+              >
+                No, Keep Trying
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Nebula bg */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 25% 45%, #0e1828 0%, transparent 58%), radial-gradient(ellipse at 75% 20%, #110e20 0%, transparent 52%), radial-gradient(ellipse at 55% 85%, #0c1520 0%, transparent 50%), #080b14' }} />
