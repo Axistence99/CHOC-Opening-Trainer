@@ -782,10 +782,10 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
   // Mode button helper
   const modeBtn = (m) => ({
-    padding: '5px 12px',
-    fontSize: '0.65rem',
+    padding: '6px 4px',
+    fontSize: '0.62rem',
     fontFamily: "'Orbitron', sans-serif",
-    letterSpacing: '0.06em',
+    letterSpacing: '0.04em',
     fontWeight: mode === m ? 700 : 400,
     color: mode === m ? '#ddd8cc' : 'rgba(160,152,138,0.5)',
     background: mode === m ? 'rgba(107,140,174,0.2)' : 'rgba(107,140,174,0.04)',
@@ -793,6 +793,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     borderRadius: '8px',
     cursor: 'pointer',
     transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    whiteSpace: 'nowrap',
+    width: '100%',
   });
 
   const handleDeleteRepertoire = useCallback(() => {
@@ -835,38 +840,45 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       </div>
 
       <div className="relative flex flex-col min-h-screen" style={{ zIndex: 1 }}>
-        {/* Header */}
-        <header className="flex items-center justify-between px-3 md:px-6 py-2.5 border-b" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.9)' }}>
-          <div className="flex items-center gap-2 md:gap-3">
-            <button onClick={onExit} className="px-2.5 py-1.5 text-xs rounded-lg transition-all hover:scale-105 active:scale-95" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>← Back</button>
-            <div className="min-w-0">
-              <h1 className="font-orbitron font-bold text-sm truncate" style={{ color: '#ddd8cc', letterSpacing: '0.08em' }}>{repertoire.name}</h1>
-              <p className="text-[10px] truncate" style={{ color: 'rgba(150,142,130,0.5)' }}>{openingName}</p>
-              {repertoire.tags && repertoire.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {repertoire.tags.map(t => (
-                    <span key={t} className="px-1.5 py-0.5 rounded text-[9px]" style={{ background: 'rgba(107,140,174,0.15)', border: '1px solid rgba(107,140,174,0.25)', color: '#8daac4' }}>{t}</span>
-                  ))}
-                </div>
-              )}
+        {/* Header — 2-row layout on mobile so all 4 buttons (STUDY, TRAIN, SPAR, EDIT) fit side-by-side */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between px-3 md:px-6 py-2 sm:py-2.5 border-b gap-2" style={{ borderColor: 'rgba(107,140,174,0.12)', background: 'rgba(6,8,16,0.9)' }}>
+          {/* Top Row on Mobile / Left Side on Desktop: Back button, Repertoire name, and mobile Settings */}
+          <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              <button onClick={onExit} className="px-2.5 py-1.5 text-xs rounded-lg transition-all hover:scale-105 active:scale-95 shrink-0" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>← Back</button>
+              <div className="min-w-0">
+                <h1 className="font-orbitron font-bold text-xs sm:text-sm truncate" style={{ color: '#ddd8cc', letterSpacing: '0.08em' }}>{repertoire.name}</h1>
+                <p className="text-[10px] truncate hidden sm:block" style={{ color: 'rgba(150,142,130,0.5)' }}>{openingName}</p>
+                {repertoire.tags && repertoire.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {repertoire.tags.map(t => (
+                      <span key={t} className="px-1.5 py-0.5 rounded text-[9px]" style={{ background: 'rgba(107,140,174,0.15)', border: '1px solid rgba(107,140,174,0.25)', color: '#8daac4' }}>{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+            {/* Settings button visible on mobile top-right */}
+            <button onClick={() => setSettingsOpen(v => !v)} title="Settings" className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:scale-105 shrink-0" style={{ background: settingsOpen ? 'rgba(107,140,174,0.18)' : 'rgba(107,140,174,0.07)', border: `1px solid ${settingsOpen ? 'rgba(107,140,174,0.35)' : 'rgba(107,140,174,0.14)'}`, color: settingsOpen ? '#8daac4' : '#475569', fontSize: '0.85rem', cursor: 'pointer' }}>⚙</button>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Mode toggle */}
-            <div className="flex gap-1 items-center">
+
+          {/* Bottom Row on Mobile / Right Side on Desktop: Mode toggle buttons + Desktop Settings */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+            {/* Mode toggle — 4-column grid on mobile so STUDY, TRAIN, SPAR, EDIT all fit side-by-side */}
+            <div className="grid grid-cols-4 sm:flex gap-1 items-center w-full sm:w-auto">
               <button onClick={() => { setMode('study'); studyReset(); }} style={modeBtn('study')}>📖 STUDY</button>
               <button onClick={() => { setMode('train'); chess.reset(); setPosition(chess.fen()); setCurrentPath([]); setLastMove(null); if (tree && allLines.length > 0) startTrainLine(allLines, 0, tree); }} style={modeBtn('train')}>🎯 TRAIN</button>
               <button onClick={() => setSparMode(true)} style={modeBtn('spar')}>⚔ SPAR</button>
               <button onClick={() => setMode('edit')} style={modeBtn('edit')}>✏️ EDIT</button>
             </div>
             {mode === 'train' && (
-              <div className="hidden sm:flex items-center gap-2 text-xs" style={{ color: 'rgba(150,142,130,0.6)' }}>
+              <div className="hidden md:flex items-center gap-2 text-xs shrink-0" style={{ color: 'rgba(150,142,130,0.6)' }}>
                 <span style={{ color: '#6b8cae' }}>✓{stats.correct}</span>
                 <span style={{ color: '#ff6b6b' }}>✗{stats.wrong}</span>
                 <span style={{ color: '#cbd5e1' }}>{accuracy}%</span>
               </div>
             )}
-            <button onClick={() => setSettingsOpen(v => !v)} title="Settings" className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:scale-105" style={{ background: settingsOpen ? 'rgba(107,140,174,0.18)' : 'rgba(107,140,174,0.07)', border: `1px solid ${settingsOpen ? 'rgba(107,140,174,0.35)' : 'rgba(107,140,174,0.14)'}`, color: settingsOpen ? '#8daac4' : '#475569', fontSize: '0.85rem', cursor: 'pointer' }}>⚙</button>
+            <button onClick={() => setSettingsOpen(v => !v)} title="Settings" className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:scale-105 shrink-0" style={{ background: settingsOpen ? 'rgba(107,140,174,0.18)' : 'rgba(107,140,174,0.07)', border: `1px solid ${settingsOpen ? 'rgba(107,140,174,0.35)' : 'rgba(107,140,174,0.14)'}`, color: settingsOpen ? '#8daac4' : '#475569', fontSize: '0.85rem', cursor: 'pointer' }}>⚙</button>
           </div>
         </header>
 
