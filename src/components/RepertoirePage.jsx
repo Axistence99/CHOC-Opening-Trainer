@@ -241,7 +241,10 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const [studyNode, setStudyNode] = useState(null);
 
   // Train state
-  const [trainStatus, setTrainStatus] = useState('waiting'); // waiting | user_turn | correct | wrong | complete
+  const [trainStatus, setTrainStatus] = useState('waiting'); // waiting | user_turn | correct | wrong | complete | random_advance
+  // Random Positions training type: counts consecutive correct user moves;
+  // after 2 correct moves the board jumps to a fresh random position.
+  const [randomCorrectStreak, setRandomCorrectStreak] = useState(0);
   const [trainMessage, setTrainMessage] = useState('');
   const [expectedMoves, setExpectedMoves] = useState(new Map());
   const [allLines, setAllLines] = useState([]);
@@ -337,7 +340,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
   // ─── AUTOMATED BOT AUTO-RESPONSE IN TRAIN MODE ───
   useEffect(() => {
-    if (mode !== 'train' || trainStatus === 'complete' || trainStatus === 'wrong' || trainStatus === 'waiting') return;
+    if (mode !== 'train' || trainStatus === 'complete' || trainStatus === 'wrong' || trainStatus === 'waiting' || trainStatus === 'random_advance') return;
     if (!expectedMoves || expectedMoves.size === 0) return;
 
     const isUserWhite = !repertoire?.color || repertoire.color.toLowerCase() === 'white';
@@ -498,6 +501,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setWrongSquare(null);
     setTrainMessage(startStep > 0 ? `Random Pos (Move ${startStep + 1}) — Line ${idx + 1} of ${lines.length}` : `Line ${idx + 1} of ${lines.length}`);
     setLineErrorCount(0);
+    setRandomCorrectStreak(0);
 
     setCurrentNode(startNode);
     const expected = getExpectedForLineStep(startNode, currentLine, startStep);
@@ -544,6 +548,21 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setHintStage(0);
       handleSessionProgress();
       bumpDailyCount();
+
+      // ─── RANDOM POSITIONS training type ───
+      // After 2 correct user moves, automatically deal a fresh random position.
+      if (trainStartMode === 'random') {
+        const newStreak = randomCorrectStreak + 1;
+        setRandomCorrectStreak(newStreak);
+        if (newStreak >= 2) {
+          setTrainStatus('random_advance'); // blocks input + bot response during the shuffle
+          setTrainMessage('✓ 2 correct moves — new random position...');
+          setTimeout(() => {
+            startTrainLine(activeTrainLines, lineIndex, tree, 'random');
+          }, 900);
+          return;
+        }
+      }
 
       setCurrentNode(nextNode);
       const currentLine = activeTrainLines && activeTrainLines[lineIndex] ? activeTrainLines[lineIndex] : null;
@@ -597,7 +616,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         setTrainMessage('Your turn — try again');
       }, 800);
     }
-  }, [chess, trainStatus, expectedMoves, repertoire, hintStage, handleSessionProgress, bumpDailyCount]);
+  }, [chess, trainStatus, expectedMoves, repertoire, hintStage, handleSessionProgress, bumpDailyCount, trainStartMode, randomCorrectStreak, activeTrainLines, lineIndex, tree, startTrainLine]);
 
   const handleTrainFilterChange = useCallback((val) => {
     setTrainLineFilter(val);
@@ -1189,11 +1208,9 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                   <button onClick={handleNextLine} className="w-full h-9 px-5 text-xs rounded-lg transition-all hover:scale-105 font-orbitron font-semibold" style={{ letterSpacing: '0.08em', background: 'linear-gradient(135deg, rgba(107,140,174,0.3), rgba(168,131,74,0.2))', border: '1px solid rgba(107,140,174,0.3)', color: '#ddd8cc', cursor: 'pointer' }}>NEXT LINE →</button>
                 ) : (
                   <>
-                    {(trainStatus === 'wrong' || trainStatus === 'user_turn') && currentPath.length > 0 && (
+                    {/* Restart Line hidden in Random Positions type — a new random position is dealt automatically after 2 correct moves */}
+                    {trainStartMode !== 'random' && (trainStatus === 'wrong' || trainStatus === 'user_turn') && currentPath.length > 0 && (
                       <button onClick={handleRestartLine} className="px-3 h-8 text-xs rounded-lg transition-all" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart Line</button>
-                    )}
-                    {trainStartMode === 'random' && (
-                      <button onClick={() => startTrainLine(activeTrainLines, lineIndex, tree, 'random')} className="px-3 h-8 text-xs rounded-lg transition-all font-orbitron font-semibold" style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.35)', color: '#facc15', cursor: 'pointer', letterSpacing: '0.04em' }}>🎲 Next Random Pos</button>
                     )}
                   </>
                 )}
@@ -1352,7 +1369,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
                   {/* Start Mode Toggle (From Move 1 vs Random Positions) */}
                   <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(15,20,40,0.6)', border: '1px solid rgba(107,140,174,0.08)' }}>
-                    <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>TRAINING SETTINGS</h3>
+                    <h3 className="font-orbitron font-semibold text-[10px]" style={{ color: '#8daac4', letterSpacing: '0.1em' }}>TRAINING TYPE</h3>
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => {
@@ -1444,7 +1461,9 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                         💡 Hint {hintStage === 0 ? '' : hintStage === 1 ? '(source)' : '(full)'}
                       </button>
                     )}
-                    <button onClick={handleRestartLine} className="px-3 py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart</button>
+                    {trainStartMode !== 'random' && (
+                      <button onClick={handleRestartLine} className="px-3 py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }}>↺ Restart</button>
+                    )}
                     <button onClick={handleCopyLine} className="px-3 py-1.5 text-xs rounded-lg transition-all hover:scale-105" style={{ background: 'rgba(107,140,174,0.06)', border: '1px solid rgba(107,140,174,0.12)', color: 'rgba(160,152,138,0.6)', cursor: 'pointer' }} title="Copy current line">
                       {copyMsg ? '✓ Copied' : '📋 Copy'}
                     </button>
