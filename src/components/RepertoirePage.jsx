@@ -245,6 +245,9 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // Random Positions training type: counts consecutive correct user moves;
   // after 2 correct moves the board jumps to a fresh random position.
   const [randomCorrectStreak, setRandomCorrectStreak] = useState(0);
+  // FENs already dealt in Random Positions mode — positions never repeat
+  // until the whole pool is exhausted, then the set is reshuffled.
+  const usedRandomPositionsRef = useRef(new Set());
   const [trainMessage, setTrainMessage] = useState('');
   const [expectedMoves, setExpectedMoves] = useState(new Map());
   const [allLines, setAllLines] = useState([]);
@@ -336,6 +339,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     setCurrentPath([]);
     setLastMove(null);
     setTrainStatus('waiting');
+    usedRandomPositionsRef.current.clear();
   }, [repertoire]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── AUTOMATED BOT AUTO-RESPONSE IN TRAIN MODE ───
@@ -476,13 +480,40 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       node = parsePGNToTree(repertoire.pgn);
       setTree(node);
     }
-    const currentLine = lines && lines[idx] ? lines[idx] : null;
     const effectiveMode = overrideMode || trainStartMode;
 
+    // ─── RANDOM POSITIONS draw (no repeats) ───
+    // Pool every valid random position across all active lines and deal one
+    // that hasn't been seen yet. Only when the entire pool is exhausted do
+    // we reshuffle and allow positions again.
+    let chosenLineIdx = idx;
     let startStep = 0;
-    if (effectiveMode === 'random' && currentLine && currentLine.length > 2) {
-      startStep = Math.floor(Math.random() * (currentLine.length - 2)) + 1;
+    let reshuffled = false;
+    if (effectiveMode === 'random') {
+      const candidates = [];
+      lines.forEach((line, li) => {
+        if (!line || line.length <= 2) return;
+        for (let s = 1; s <= line.length - 2; s++) {
+          const n = getNodeForPath(node, line, s);
+          if (n && n.fen) candidates.push({ lineIdx: li, step: s, fen: n.fen });
+        }
+      });
+      if (candidates.length > 0) {
+        let pool = candidates.filter(c => !usedRandomPositionsRef.current.has(c.fen));
+        if (pool.length === 0) {
+          usedRandomPositionsRef.current.clear(); // every position seen — reshuffle
+          pool = candidates;
+          reshuffled = true;
+        }
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        usedRandomPositionsRef.current.add(pick.fen);
+        chosenLineIdx = pick.lineIdx;
+        startStep = pick.step;
+      }
     }
+
+    const currentLine = lines && lines[chosenLineIdx] ? lines[chosenLineIdx] : null;
+    if (chosenLineIdx !== idx) setLineIndex(chosenLineIdx);
 
     const startNode = getNodeForPath(node, currentLine, startStep);
     const startFen = startNode?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -499,7 +530,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
     }
 
     setWrongSquare(null);
-    setTrainMessage(startStep > 0 ? `Random Pos (Move ${startStep + 1}) — Line ${idx + 1} of ${lines.length}` : `Line ${idx + 1} of ${lines.length}`);
+    setTrainMessage(startStep > 0 ? `${reshuffled ? '♻ All positions seen — reshuffled! ' : ''}Random Pos (Move ${startStep + 1}) — Line ${chosenLineIdx + 1} of ${lines.length}` : `Line ${chosenLineIdx + 1} of ${lines.length}`);
     setLineErrorCount(0);
     setRandomCorrectStreak(0);
 
