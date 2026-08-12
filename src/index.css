@@ -144,3 +144,12 @@ cg-board {
   0% { opacity: 0; transform: scale(0.5); }
   100% { opacity: 1; transform: scale(1); }
 }
+
+/* Stable responsive chessboard size.
+   Uses 100svh (small viewport height) so the board does NOT resize or shift
+   when mobile browser chrome (URL bar) expands/collapses mid-session.
+   The 100vh line is a fallback for older browsers. */
+.responsive-board-size {
+  width: min(calc(100vw - 40px), calc(100vh - 220px), 540px);
+  width: min(calc(100vw - 40px), calc(100svh - 220px), 540px);
+}

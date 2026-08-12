@@ -248,6 +248,12 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   // FENs already dealt in Random Positions mode — positions never repeat
   // until the whole pool is exhausted, then the set is reshuffled.
   const usedRandomPositionsRef = useRef(new Set());
+  // Pending transition timers (random-position shuffle / wrong-move reset).
+  // Tracked so a new deal always cancels stale timers — otherwise a stale
+  // timeout can re-deal over the current position or leave trainStatus stuck,
+  // which made the board feel unresponsive.
+  const randomAdvanceTimerRef = useRef(null);
+  const wrongResetTimerRef = useRef(null);
   const [trainMessage, setTrainMessage] = useState('');
   const [expectedMoves, setExpectedMoves] = useState(new Map());
   const [allLines, setAllLines] = useState([]);
@@ -389,6 +395,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         setTrainStatus('complete');
         setTrainMessage('✅ Line complete!');
       }
+    } else if (trainStatus !== 'user_turn' && trainStatus !== 'wrong' && trainStatus !== 'random_advance') {
+      // Self-heal: it's the user's turn but status never reached 'user_turn'
+      // (e.g. after a timer race). Recover so the board is never left frozen.
+      setTrainStatus('user_turn');
+      setTrainMessage('Your turn — play the correct move');
     }
   }, [mode, trainStatus, expectedMoves, chess, repertoire?.color, currentNode, activeTrainLines, lineIndex, currentPath.length]);
 
@@ -470,6 +481,11 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
   // ─── TRAIN MODE ───
   const startTrainLine = useCallback((lines, idx, rootNode, overrideMode) => {
+    // Cancel any pending transition timers so they can't interfere with the
+    // freshly dealt position (fixes board becoming unresponsive / jumping).
+    if (randomAdvanceTimerRef.current) { clearTimeout(randomAdvanceTimerRef.current); randomAdvanceTimerRef.current = null; }
+    if (wrongResetTimerRef.current) { clearTimeout(wrongResetTimerRef.current); wrongResetTimerRef.current = null; }
+
     if (!lines || lines.length === 0 || idx >= lines.length) {
       setTrainStatus('complete');
       setTrainMessage('All lines completed!');
@@ -517,7 +533,12 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
 
     const startNode = getNodeForPath(node, currentLine, startStep);
     const startFen = startNode?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    chess.load(startFen);
+    try {
+      chess.load(startFen);
+    } catch {
+      // Malformed FEN fallback — never let a bad deal strand the board.
+      chess.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    }
     setPosition(chess.fen());
 
     const playedSans = currentLine && startStep > 0 ? currentLine.slice(0, startStep).map(m => m.san) : [];
@@ -552,7 +573,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setTrainStatus('complete');
       setTrainMessage('✅ Line complete!');
     }
-  }, [chess, repertoire, tree]);
+  }, [chess, repertoire, tree, trainStartMode]);
 
   const handleTrainUserMove = useCallback((orig, dest) => {
     if (trainStatus !== 'user_turn') return;
@@ -588,7 +609,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
         if (newStreak >= 2) {
           setTrainStatus('random_advance'); // blocks input + bot response during the shuffle
           setTrainMessage('✓ 2 correct moves — new random position...');
-          setTimeout(() => {
+          randomAdvanceTimerRef.current = setTimeout(() => {
+            randomAdvanceTimerRef.current = null;
             startTrainLine(activeTrainLines, lineIndex, tree, 'random');
           }, 900);
           return;
@@ -640,7 +662,8 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
       setTrainMessage(`Wrong! Correct: ${correctSans.join(', ')}`);
 
       // Clear red X and reset status after animation
-      setTimeout(() => {
+      wrongResetTimerRef.current = setTimeout(() => {
+        wrongResetTimerRef.current = null;
         setWrongSquare(null);
         setMoveGlyph(null);
         setTrainStatus('user_turn');
@@ -880,7 +903,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
   const studyProgress = studyPath.length > 1 ? (studyStep / (studyPath.length - 1)) * 100 : 0;
   const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
   const openingName = currentPath.length > 0 ? getOpeningFromMoves(currentPath) : 'Starting Position';
-  const boardSize = 'min(calc(100vw - 40px), calc(100vh - 220px), 540px)';
+
 
   // Mode button helper
   const modeBtn = (m) => ({
@@ -1102,7 +1125,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
             {/* Board */}
             <div className="relative">
               <div className="relative rounded-lg overflow-hidden" style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
-                <div style={{ width: boardSize }}>
+                <div className="responsive-board-size">
                   <ChessgroundBoard config={cgConfig} boardTheme={boardBg} />
                 </div>
               </div>
@@ -1193,45 +1216,7 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
                 </select>
               </div>
             )}
-            {/* Start Mode Toggle (From Move 1 vs Random Positions) */}
-            {mode === 'train' && (
-              <div className="flex items-center justify-center w-full max-w-sm md:max-w-md gap-1.5 h-[32px] shrink-0">
-                <button
-                  onClick={() => {
-                    setTrainStartMode('start');
-                    startTrainLine(activeTrainLines, lineIndex, tree, 'start');
-                  }}
-                  className="flex-1 h-7 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
-                  style={{
-                    background: trainStartMode === 'start' ? 'rgba(107,140,174,0.22)' : 'rgba(107,140,174,0.05)',
-                    border: `1px solid ${trainStartMode === 'start' ? 'rgba(107,140,174,0.45)' : 'rgba(107,140,174,0.12)'}`,
-                    color: trainStartMode === 'start' ? '#fff' : 'rgba(160,152,138,0.6)',
-                    cursor: 'pointer',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  <span>▶</span>
-                  <span>FROM MOVE 1</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setTrainStartMode('random');
-                    startTrainLine(activeTrainLines, lineIndex, tree, 'random');
-                  }}
-                  className="flex-1 h-7 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
-                  style={{
-                    background: trainStartMode === 'random' ? 'rgba(234,179,8,0.22)' : 'rgba(107,140,174,0.05)',
-                    border: `1px solid ${trainStartMode === 'random' ? 'rgba(234,179,8,0.45)' : 'rgba(107,140,174,0.12)'}`,
-                    color: trainStartMode === 'random' ? '#facc15' : 'rgba(160,152,138,0.6)',
-                    cursor: 'pointer',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  <span>🎲</span>
-                  <span>RANDOM POSITIONS</span>
-                </button>
-              </div>
-            )}
+            {/* Training Type toggle lives in the side panel (desktop) / bottom panel (mobile) — not under the board */}
             {/* Stable fixed-height container for Training Mode buttons so they NEVER displace the chessboard */}
             {mode === 'train' && (
               <div className="flex items-center justify-center w-full max-w-sm md:max-w-md h-[40px] gap-2 shrink-0">
@@ -1655,6 +1640,43 @@ export default function RepertoirePage({ repertoire, onExit, boardTheme, onBoard
           )}
           {mode === 'train' && (
             <>
+              {/* Training Type toggle (mobile) — moved here from under the board */}
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => {
+                    setTrainStartMode('start');
+                    startTrainLine(activeTrainLines, lineIndex, tree, 'start');
+                  }}
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
+                  style={{
+                    background: trainStartMode === 'start' ? 'rgba(107,140,174,0.22)' : 'rgba(107,140,174,0.05)',
+                    border: `1px solid ${trainStartMode === 'start' ? 'rgba(107,140,174,0.45)' : 'rgba(107,140,174,0.12)'}`,
+                    color: trainStartMode === 'start' ? '#fff' : 'rgba(160,152,138,0.6)',
+                    cursor: 'pointer',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  <span>▶</span>
+                  <span>FROM MOVE 1</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setTrainStartMode('random');
+                    startTrainLine(activeTrainLines, lineIndex, tree, 'random');
+                  }}
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-orbitron font-semibold transition-all flex items-center justify-center gap-1"
+                  style={{
+                    background: trainStartMode === 'random' ? 'rgba(234,179,8,0.22)' : 'rgba(107,140,174,0.05)',
+                    border: `1px solid ${trainStartMode === 'random' ? 'rgba(234,179,8,0.45)' : 'rgba(107,140,174,0.12)'}`,
+                    color: trainStartMode === 'random' ? '#facc15' : 'rgba(160,152,138,0.6)',
+                    cursor: 'pointer',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  <span>🎲</span>
+                  <span>RANDOM POSITIONS</span>
+                </button>
+              </div>
               <div className="rounded-lg px-3 py-2" style={{
                 background: trainStatus === 'correct' ? 'rgba(107,140,174,0.12)' : trainStatus === 'wrong' ? 'rgba(255,107,107,0.08)' : trainStatus === 'complete' ? 'rgba(168,131,74,0.12)' : 'rgba(15,20,40,0.6)',
                 border: `1px solid ${trainStatus === 'correct' ? 'rgba(107,140,174,0.3)' : trainStatus === 'wrong' ? 'rgba(255,107,107,0.2)' : trainStatus === 'complete' ? 'rgba(168,131,74,0.3)' : 'rgba(107,140,174,0.08)'}`,
