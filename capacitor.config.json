@@ -1,0 +1,13 @@
+{
+  "appId": "com.axistence.redalgin",
+  "appName": "Redalgin Trainer",
+  "webDir": "dist",
+  "backgroundColor": "#1a1a1a",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#1a1a1a"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

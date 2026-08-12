@@ -53,8 +53,10 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      // Register service worker for PWA / offline support
-      if ('serviceWorker' in navigator) {
+      // Register service worker for PWA / offline support.
+      // Skip inside the native Capacitor shell (window.Capacitor is defined there):
+      // the app files are already bundled locally and SW caching can block native updates.
+      if ('serviceWorker' in navigator && !window.Capacitor) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('./sw.js').then(function (reg) {
             reg.update();
