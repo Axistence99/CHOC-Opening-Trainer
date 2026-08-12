@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="Redalgin — Free chess opening repertoire trainer with pre-built lines and PGN import. Practice with spaced repetition." />
+    <meta name="theme-color" content="#080b14" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Redalgin" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png" />
+    <title>Redalgin Opening Trainer</title>
+    <!-- Inject piece set CSS override BEFORE React mounts to prevent flash of default pieces.
+         Reads the persisted piece set from localStorage. If it's cburnett (default), no override needed.
+         For other sets, we create a <style> with !important rules that win over the bundled cburnett CSS. -->
+    <script>
+      try {
+        var ps = localStorage.getItem('redalgin-piece-set') || localStorage.getItem('choc-piece-set');
+        if (ps && ps !== 'cburnett') {
+          var base = 'https://lichess1.org/assets/piece/' + ps + '/';
+          var roles = ['king','queen','rook','bishop','knight','pawn'];
+          var letters = {king:'K',queen:'Q',rook:'R',bishop:'B',knight:'N',pawn:'P'};
+          var colors = ['white','black'];
+          var css = '';
+          for (var ci = 0; ci < colors.length; ci++) {
+            for (var ri = 0; ri < roles.length; ri++) {
+              var cl = colors[ci][0];
+              var rl = letters[roles[ri]];
+              css += '.cg-wrap piece.' + roles[ri] + '.' + colors[ci] +
+                ' { background-image: url(' + JSON.stringify(base + cl + rl + '.svg') +
+                ') !important; background-size: cover !important; }\n';
+            }
+          }
+          var s = document.createElement('style');
+          s.id = 'chessground-piece-override';
+          s.textContent = css;
+          document.head.appendChild(s);
+        }
+      } catch(e) {}
+    </script>
+    <script type="module" crossorigin src="./assets/index-U5ic_qV_.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index--SHqDRfn.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Register service worker for PWA / offline support.
+      // Skip inside the native Capacitor shell (window.Capacitor is defined there):
+      // the app files are already bundled locally and SW caching can block native updates.
+      if ('serviceWorker' in navigator && !window.Capacitor) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('./sw.js').then(function (reg) {
+            reg.update();
+          }).catch(function (err) {
+            console.warn('SW registration failed:', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
